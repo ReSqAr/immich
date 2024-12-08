@@ -23,6 +23,7 @@ class BoundingBox(TypedDict):
 class ModelTask(StrEnum):
     FACIAL_RECOGNITION = "facial-recognition"
     SEARCH = "clip"
+    IQA = "iqa"
 
 
 class ModelType(StrEnum):
@@ -30,6 +31,7 @@ class ModelType(StrEnum):
     RECOGNITION = "recognition"
     TEXTUAL = "textual"
     VISUAL = "visual"
+    SCORE = "score"
 
 
 class ModelFormat(StrEnum):
@@ -41,6 +43,7 @@ class ModelSource(StrEnum):
     INSIGHTFACE = "insightface"
     MCLIP = "mclip"
     OPENCLIP = "openclip"
+    IQA = "iqa"
 
 
 ModelIdentity = tuple[ModelType, ModelTask]
