@@ -62,6 +62,17 @@ _INSIGHTFACE_MODELS = {
     "buffalo_l",
 }
 
+_IQA_MODELS = {
+    'arniqa-clive',
+    'arniqa-csiq',
+    'arniqa-flive',
+    'arniqa-kadid',
+    'arniqa-koniq',
+    'arniqa-live',
+    'arniqa-spaq',
+    'arniqa-tid',
+}
+
 
 SUPPORTED_PROVIDERS = ["CUDAExecutionProvider", "OpenVINOExecutionProvider", "CPUExecutionProvider"]
 
@@ -77,5 +88,8 @@ def get_model_source(model_name: str) -> ModelSource | None:
 
     if cleaned_name in _OPENCLIP_MODELS:
         return ModelSource.OPENCLIP
+
+    if cleaned_name in _IQA_MODELS:
+        return ModelSource.IQA
 
     return None

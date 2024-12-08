@@ -1,0 +1,267 @@
+#!/usr/bin/env python3
+
+import sys
+import requests
+from pathlib import Path
+from typing import List, Tuple, Optional, Dict
+import json
+import argparse
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from rich.console import Console
+from rich.progress import Progress, SpinnerColumn, TimeElapsedColumn
+from rich.table import Table
+from rich.panel import Panel
+import threading
+
+# Global Constants
+DEFAULT_API_URL = "http://localhost:3003/predict"
+DEFAULT_DIRECTORY = "./test"
+DEFAULT_MODELS = ["arniqa-kadid"]
+SUPPORTED_EXTENSIONS = ('.jpg', '.jpeg')
+DEFAULT_MAX_WORKERS = 12
+
+# Initialize Rich console and thread-safe storage
+console = Console()
+thread_local = threading.local()
+
+
+def parse_arguments() -> argparse.Namespace:
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Image Quality Assessment Tool",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        '-d', '--directory',
+        default=DEFAULT_DIRECTORY,
+        help='Directory containing images to process'
+    )
+    parser.add_argument(
+        '-m', '--models',
+        nargs='+',
+        default=DEFAULT_MODELS,
+        help='Model names to use for quality assessment (space-separated)'
+    )
+    parser.add_argument(
+        '--api-url',
+        default=DEFAULT_API_URL,
+        help='API endpoint URL'
+    )
+    parser.add_argument(
+        '-w', '--workers',
+        type=int,
+        default=DEFAULT_MAX_WORKERS,
+        help='Number of worker threads'
+    )
+
+    return parser.parse_args()
+
+
+def get_session():
+    """Get a thread-local session."""
+    if not hasattr(thread_local, "session"):
+        thread_local.session = requests.Session()
+    return thread_local.session
+
+
+def get_image_quality(args: Tuple[Path, str, str]) -> Tuple[str, str, Optional[float]]:
+    """Make API call to get image quality score."""
+    image_path, model, api_url = args
+    session = get_session()
+
+    entries = {
+        "iqa": {
+            "score": {
+                "modelName": model,
+                "options": {}
+            }
+        }
+    }
+
+    try:
+        with open(image_path, 'rb') as img:
+            files = {
+                'image': ('image.jpg', img, 'image/jpeg'),
+                'entries': (None, json.dumps(entries))
+            }
+            response = session.post(api_url, files=files)
+            response.raise_for_status()
+
+        score = round(response.json()['iqa']['score'] * 100, 2)
+        return image_path.stem, model, score
+    except Exception as e:
+        console.print(f"[red]Error processing {image_path.name} with model {model}: {str(e)}[/red]")
+        return image_path.stem, model, None
+
+
+def process_images(directory: Path, models: List[str], api_url: str, max_workers: int) -> Dict[
+    str, List[Tuple[str, float]]]:
+    """Process all images in directory using thread pool."""
+    image_files = []
+    for ext in SUPPORTED_EXTENSIONS:
+        image_files.extend(directory.glob(f"*{ext}"))
+
+    if not image_files:
+        console.print(f"[yellow]No images found in {directory}[/yellow]")
+        sys.exit(1)
+
+    results_by_model: Dict[str, List[Tuple[str, float]]] = {model: [] for model in models}
+    total_tasks = len(image_files) * len(models)
+
+    with Progress(
+            SpinnerColumn(),
+            *Progress.get_default_columns(),
+            TimeElapsedColumn(),
+            console=console
+    ) as progress:
+        task = progress.add_task("[cyan]Processing images...", total=total_tasks)
+
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_image = {
+                executor.submit(get_image_quality, (image_path, model, api_url)): (image_path, model)
+                for image_path in image_files
+                for model in models
+            }
+
+            for future in as_completed(future_to_image):
+                filename, model, score = future.result()
+                if score is not None:
+                    results_by_model[model].append((filename, score))
+                progress.advance(task)
+
+    # Sort results for each model
+    for model in models:
+        results_by_model[model] = sorted(results_by_model[model], key=lambda x: x[1], reverse=True)
+
+    return results_by_model
+
+
+def get_rank_map(sorted_results: List[Tuple[str, float]]) -> Dict[str, int]:
+    """Create a mapping of filename to rank for a sorted result list."""
+    return {filename: rank + 1 for rank, (filename, _) in enumerate(sorted_results)}
+
+
+def calculate_average_scores(results_by_model: Dict[str, List[Tuple[str, float]]]) -> Dict[str, float]:
+    """Calculate average score across all models for each image."""
+    score_sums = {}
+    score_counts = {}
+
+    for model_results in results_by_model.values():
+        for filename, score in model_results:
+            score_sums[filename] = score_sums.get(filename, 0) + score
+            score_counts[filename] = score_counts.get(filename, 0) + 1
+
+    return {
+        filename: score_sums[filename] / score_counts[filename]
+        for filename in score_sums
+    }
+
+
+def get_percentile_color(rank: int, total_count: int) -> str:
+    """Determine color based on rank percentile."""
+    percentile = (rank / total_count) * 100
+    if percentile <= 20:  # top 20%
+        return "green"
+    elif percentile <= 50:  # next 30%
+        return "yellow"
+    else:  # bottom 50%
+        return "red"
+
+
+def display_results(results_by_model: Dict[str, List[Tuple[str, float]]], processing_time: float) -> None:
+    """Display results in a rich table."""
+    # Create rank maps for each model
+    rank_maps = {
+        model: get_rank_map(results)
+        for model, results in results_by_model.items()
+    }
+
+    # Calculate average scores for sorting only
+    avg_scores = calculate_average_scores(results_by_model)
+    sorted_images = sorted(avg_scores.keys(), key=lambda x: avg_scores[x], reverse=True)
+
+    # Create the table
+    table = Table(show_header=True, header_style="bold magenta")
+    table.add_column("Image", style="cyan")
+
+    # Add columns for each model
+    for model in results_by_model.keys():
+        table.add_column(f"{model}", justify="right", style="green")
+
+    # Create a lookup dictionary for each model's results
+    model_results_lookup = {
+        model: {filename: score for filename, score in results}
+        for model, results in results_by_model.items()
+    }
+
+    # Get total count for percentile calculation
+    total_images = len(sorted_images)
+
+    # Add rows to the table
+    for filename in sorted_images:
+        row = [filename]
+
+        for model in results_by_model.keys():
+            score = model_results_lookup[model].get(filename)
+            rank = rank_maps[model].get(filename)
+            if score is not None:
+                color = get_percentile_color(rank, total_images)
+                row.append(f"[{color}]{score:.2f} ({rank})[/]")
+            else:
+                row.append("[red]N/A[/]")
+
+        table.add_row(*row)
+
+    console.print("\n")
+    console.print(Panel(table, title="Image Quality Assessment Results", border_style="blue"))
+
+    # Print summary statistics
+    console.print("\n[bold]Summary:[/bold]")
+    console.print(f"Total images processed: [cyan]{total_images}[/cyan]")
+    for model, results in results_by_model.items():
+        if results:
+            avg_score = sum(score for _, score in results) / len(results)
+            console.print(f"Average {model} score: [cyan]{avg_score:.2f}%[/cyan]")
+
+    console.print(f"Processing time: [cyan]{processing_time:.2f} seconds[/cyan]")
+
+
+def main():
+    """Main function."""
+    try:
+        args = parse_arguments()
+        directory = Path(args.directory)
+
+        # Validate directory
+        if not directory.exists():
+            console.print(f"[red]Error: Directory '{directory}' does not exist[/red]")
+            sys.exit(1)
+
+        # Display configuration
+        console.print(Panel.fit(
+            f"[bold]Configuration[/bold]\n"
+            f"Directory: [cyan]{directory}[/cyan]\n"
+            f"Models: [cyan]{', '.join(args.models)}[/cyan]\n"
+            f"API URL: [cyan]{args.api_url}[/cyan]\n"
+            f"Worker Threads: [cyan]{args.workers}[/cyan]",
+            title="Starting Image Quality Assessment",
+            border_style="green"
+        ))
+
+        import time
+        start_time = time.time()
+        results = process_images(directory, args.models, args.api_url, args.workers)
+        processing_time = time.time() - start_time
+
+        display_results(results, processing_time)
+
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Process interrupted by user[/yellow]")
+        sys.exit(1)
+    except Exception as e:
+        console.print(f"\n[red]An error occurred: {str(e)}[/red]")
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()
