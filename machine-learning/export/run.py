@@ -1,15 +1,25 @@
 import gc
 import os
+import shutil
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import torch
 from huggingface_hub import create_repo, upload_folder
-from models import mclip, openclip
+
+from models import mclip, openclip, arniqa
 from models.optimize import optimize
 from rich.progress import Progress
 
 models = [
+    'arniqa-clive',
+    'arniqa-csiq',
+    'arniqa-flive',
+    'arniqa-kadid',
+    'arniqa-koniq',
+    'arniqa-live',
+    'arniqa-spaq',
+    'arniqa-tid',
     "M-CLIP/LABSE-Vit-L-14",
     "M-CLIP/XLM-Roberta-Large-Vit-B-16Plus",
     "M-CLIP/XLM-Roberta-Large-Vit-B-32",
@@ -66,6 +76,8 @@ uuid_glob = uuid_char * 8 + "-" + uuid_char * 4 + "-" + uuid_char * 4 + "-" + uu
 # deletion is in the same commit as the upload, so it's atomic
 delete_patterns = ["**/*onnx*", "**/Constant*", "**/*.weight", "**/*.bias", f"**/{uuid_glob}"]
 
+export_folder = os.environ.get("EXPORT_FOLDER")
+
 with Progress() as progress:
     task = progress.add_task("[green]Exporting models...", total=len(models))
     token = os.environ.get("HF_AUTH_TOKEN")
@@ -75,10 +87,10 @@ with Progress() as progress:
         for model in models:
             model_name = model.split("/")[-1].replace("::", "__")
             hf_model_name = model_name.replace("xlm-roberta-large", "XLM-Roberta-Large")
-            hf_model_name = model_name.replace("xlm-roberta-base", "XLM-Roberta-Base")
+            model_name = model_name.replace("xlm-roberta-base", "XLM-Roberta-Base")
             config_path = tmpdir / model_name / "config.json"
 
-            def export() -> None:
+            def export_clip() -> None:
                 progress.update(task, description=f"[green]Exporting {hf_model_name}")
                 visual_dir = tmpdir / hf_model_name / "visual"
                 textual_dir = tmpdir / hf_model_name / "textual"
@@ -95,6 +107,15 @@ with Progress() as progress:
 
                 gc.collect()
 
+            def export_arniqa() -> None:
+                progress.update(task, description=f"[green]Exporting {hf_model_name}")
+                model_dir = tmpdir / hf_model_name
+                model_path = arniqa.to_onnx(model, model_dir)
+                progress.update(task, description=f"[green]Optimizing {hf_model_name}")
+                optimize(model_path)
+
+                gc.collect()
+
             def upload() -> None:
                 progress.update(task, description=f"[yellow]Uploading {hf_model_name}")
                 repo_id = f"immich-app/{hf_model_name}"
@@ -107,7 +128,19 @@ with Progress() as progress:
                     token=token,
                 )
 
-            export()
+            def export() -> None:
+                model_dir = tmpdir / hf_model_name
+                model_export_folder = Path(export_folder) / hf_model_name
+                model_export_folder.mkdir(parents=True, exist_ok=True)
+                shutil.copytree(model_dir, model_export_folder, dirs_exist_ok=True)
+
+            if 'arniqa' in model_name:
+                export_arniqa()
+            else:
+                export_clip()
+
             if token is not None:
                 upload()
+            if export_folder is not None:
+                export()
             progress.update(task, advance=1)
