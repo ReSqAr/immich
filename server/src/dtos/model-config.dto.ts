@@ -46,3 +46,5 @@ export class FacialRecognitionConfig extends ModelConfig {
   @ApiProperty({ type: 'integer' })
   minFaces!: number;
 }
+
+export class IQAScoreConfig extends ModelConfig {}

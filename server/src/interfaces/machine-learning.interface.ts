@@ -10,6 +10,7 @@ export interface BoundingBox {
 export enum ModelTask {
   FACIAL_RECOGNITION = 'facial-recognition',
   SEARCH = 'clip',
+  IQA = 'iqa',
 }
 
 export enum ModelType {
@@ -18,6 +19,7 @@ export enum ModelType {
   RECOGNITION = 'recognition',
   TEXTUAL = 'textual',
   VISUAL = 'visual',
+  SCORE = 'score',
 }
 
 export type ModelPayload = { imagePath: string } | { text: string };
@@ -33,6 +35,9 @@ export type ClipVisualResponse = { [ModelTask.SEARCH]: number[] } & VisualRespon
 export type ClipTextualRequest = { [ModelTask.SEARCH]: { [ModelType.TEXTUAL]: ModelOptions } };
 export type ClipTextualResponse = { [ModelTask.SEARCH]: number[] };
 
+export type IQAScoreRequest = { [ModelTask.IQA]: { [ModelType.SCORE]: ModelOptions } };
+export type IQAScoreResponse = { [ModelTask.IQA]: { score: number } };
+
 export type FacialRecognitionRequest = {
   [ModelTask.FACIAL_RECOGNITION]: {
     [ModelType.DETECTION]: ModelOptions & { options: { minScore: number } };
@@ -47,11 +52,17 @@ export interface Face {
 }
 
 export type FacialRecognitionResponse = { [ModelTask.FACIAL_RECOGNITION]: Face[] } & VisualResponse;
+
 export type DetectedFaces = { faces: Face[] } & VisualResponse;
-export type MachineLearningRequest = ClipVisualRequest | ClipTextualRequest | FacialRecognitionRequest;
+export type MachineLearningRequest =
+  | ClipVisualRequest
+  | ClipTextualRequest
+  | FacialRecognitionRequest
+  | IQAScoreRequest;
 
 export interface IMachineLearningRepository {
   encodeImage(urls: string[], imagePath: string, config: ModelOptions): Promise<number[]>;
   encodeText(urls: string[], text: string, config: ModelOptions): Promise<number[]>;
   detectFaces(urls: string[], imagePath: string, config: FaceDetectionOptions): Promise<DetectedFaces>;
+  scoreImage(urls: string[], imagePath: string, config: ModelOptions): Promise<number>;
 }

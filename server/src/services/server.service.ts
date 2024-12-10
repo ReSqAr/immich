@@ -83,6 +83,7 @@ export class ServerService extends BaseService {
       importFaces: metadata.faces.import,
       sidecar: true,
       search: true,
+      quality: true,
       trash: trash.enabled,
       oauth: oauth.enabled,
       oauthAutoLaunch: oauth.autoLaunch,

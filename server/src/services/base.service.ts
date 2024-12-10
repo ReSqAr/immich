@@ -30,6 +30,7 @@ import { IOAuthRepository } from 'src/interfaces/oauth.interface';
 import { IPartnerRepository } from 'src/interfaces/partner.interface';
 import { IPersonRepository } from 'src/interfaces/person.interface';
 import { IProcessRepository } from 'src/interfaces/process.interface';
+import { IQualityRepository } from 'src/interfaces/quality.interface';
 import { ISearchRepository } from 'src/interfaces/search.interface';
 import { IServerInfoRepository } from 'src/interfaces/server-info.interface';
 import { ISessionRepository } from 'src/interfaces/session.interface';
@@ -76,6 +77,7 @@ export class BaseService {
     @Inject(IPartnerRepository) protected partnerRepository: IPartnerRepository,
     @Inject(IPersonRepository) protected personRepository: IPersonRepository,
     @Inject(IProcessRepository) protected processRepository: IProcessRepository,
+    @Inject(IQualityRepository) protected qualityRepository: IQualityRepository,
     @Inject(ISearchRepository) protected searchRepository: ISearchRepository,
     @Inject(IServerInfoRepository) protected serverInfoRepository: IServerInfoRepository,
     @Inject(ISessionRepository) protected sessionRepository: ISessionRepository,

@@ -115,6 +115,10 @@ export const systemConfigStub = {
         modelName: 'ViT-B-16__openai',
         enabled: true,
       },
+      iqa: {
+        enabled: true,
+        modelName: 'arniqa-kadid',
+      },
     },
   },
   publicUsersDisabled: {

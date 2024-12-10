@@ -57,6 +57,10 @@ export interface SystemConfig {
       enabled: boolean;
       modelName: string;
     };
+    iqa: {
+      enabled: boolean;
+      modelName: string;
+    };
     duplicateDetection: {
       enabled: boolean;
       maxDistance: number;
@@ -197,6 +201,7 @@ export const defaults = Object.freeze<SystemConfig>({
   job: {
     [QueueName.BACKGROUND_TASK]: { concurrency: 5 },
     [QueueName.SMART_SEARCH]: { concurrency: 2 },
+    [QueueName.IQA_SCORE]: { concurrency: 2 },
     [QueueName.METADATA_EXTRACTION]: { concurrency: 5 },
     [QueueName.FACE_DETECTION]: { concurrency: 2 },
     [QueueName.SEARCH]: { concurrency: 5 },
@@ -217,6 +222,10 @@ export const defaults = Object.freeze<SystemConfig>({
     clip: {
       enabled: true,
       modelName: 'ViT-B-32__openai',
+    },
+    iqa: {
+      enabled: true,
+      modelName: 'arniqa-kadid',
     },
     duplicateDetection: {
       enabled: true,

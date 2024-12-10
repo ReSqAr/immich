@@ -136,6 +136,10 @@ export class JobService extends BaseService {
         return this.jobRepository.queue({ name: JobName.QUEUE_SMART_SEARCH, data: { force } });
       }
 
+      case QueueName.IQA_SCORE: {
+        return this.jobRepository.queue({ name: JobName.QUEUE_IQA_SCORE_GENERATION, data: { force } });
+      }
+
       case QueueName.DUPLICATE_DETECTION: {
         return this.jobRepository.queue({ name: JobName.QUEUE_DUPLICATE_DETECTION, data: { force } });
       }
@@ -278,6 +282,7 @@ export class JobService extends BaseService {
 
         const jobs: JobItem[] = [
           { name: JobName.SMART_SEARCH, data: item.data },
+          { name: JobName.IQA_SCORE_GENERATION, data: item.data },
           { name: JobName.FACE_DETECTION, data: item.data },
         ];
 

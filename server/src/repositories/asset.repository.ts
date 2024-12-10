@@ -424,6 +424,20 @@ export class AssetRepository implements IAssetRepository {
         break;
       }
 
+      case WithoutProperty.IQA_SCORE: {
+        relations = {
+          qualityScore: true,
+        };
+        where = {
+          isVisible: true,
+          jobStatus: { previewAt: Not(IsNull()) },
+          qualityScore: {
+            score: IsNull(),
+          },
+        };
+        break;
+      }
+
       case WithoutProperty.DUPLICATE: {
         where = {
           isVisible: true,

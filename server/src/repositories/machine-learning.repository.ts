@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { readFile } from 'node:fs/promises';
-import { CLIPConfig } from 'src/dtos/model-config.dto';
+import {CLIPConfig, IQAScoreConfig} from 'src/dtos/model-config.dto';
 import { ILoggerRepository } from 'src/interfaces/logger.interface';
 import {
   ClipTextualResponse,
@@ -8,6 +8,8 @@ import {
   FaceDetectionOptions,
   FacialRecognitionResponse,
   IMachineLearningRepository,
+  IQAScoreRequest,
+  IQAScoreResponse,
   MachineLearningRequest,
   ModelPayload,
   ModelTask,
@@ -67,6 +69,12 @@ export class MachineLearningRepository implements IMachineLearningRepository {
     const request = { [ModelTask.SEARCH]: { [ModelType.TEXTUAL]: { modelName } } };
     const response = await this.predict<ClipTextualResponse>(urls, { text }, request);
     return response[ModelTask.SEARCH];
+  }
+
+  async scoreImage(urls: string[], imagePath: string, { modelName }: IQAScoreConfig): Promise<number> {
+    const request: IQAScoreRequest = { [ModelTask.IQA]: { [ModelType.SCORE]: { modelName } } };
+    const response = await this.predict<IQAScoreResponse>(urls, { imagePath }, request);
+    return response[ModelTask.IQA].score;
   }
 
   private async getFormData(payload: ModelPayload, config: MachineLearningRequest): Promise<FormData> {

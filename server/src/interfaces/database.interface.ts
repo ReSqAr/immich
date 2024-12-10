@@ -35,6 +35,7 @@ export enum DatabaseLock {
   StorageTemplateMigration = 420,
   VersionHistory = 500,
   CLIPDimSize = 512,
+  IQAScore = 513,
   Library = 1337,
   GetSystemConfig = 69,
   BackupDatabase = 42,

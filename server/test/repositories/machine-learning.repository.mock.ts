@@ -6,5 +6,6 @@ export const newMachineLearningRepositoryMock = (): Mocked<IMachineLearningRepos
     encodeImage: vitest.fn(),
     encodeText: vitest.fn(),
     detectFaces: vitest.fn(),
+    scoreImage: vitest.fn(),
   };
 };
