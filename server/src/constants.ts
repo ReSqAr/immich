@@ -82,6 +82,16 @@ export const CLIP_MODEL_INFO: Record<string, ModelInfo> = {
   'nllb-clip-large-siglip__mrl': { dimSize: 1152 },
   'nllb-clip-large-siglip__v1': { dimSize: 1152 },
 };
+export const IQA_MODELS = [
+  'arniqa-clive',
+  'arniqa-csiq',
+  'arniqa-flive',
+  'arniqa-kadid',
+  'arniqa-koniq',
+  'arniqa-live',
+  'arniqa-spaq',
+  'arniqa-tid',
+];
 
 type SharpRotationData = {
   angle?: number;

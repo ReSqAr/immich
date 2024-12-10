@@ -16,6 +16,7 @@ import { MoveEntity } from 'src/entities/move.entity';
 import { NaturalEarthCountriesEntity } from 'src/entities/natural-earth-countries.entity';
 import { PartnerEntity } from 'src/entities/partner.entity';
 import { PersonEntity } from 'src/entities/person.entity';
+import { QualityEntity } from 'src/entities/quality.entity';
 import { SessionEntity } from 'src/entities/session.entity';
 import { SharedLinkEntity } from 'src/entities/shared-link.entity';
 import { SmartSearchEntity } from 'src/entities/smart-search.entity';
@@ -27,10 +28,10 @@ import { UserEntity } from 'src/entities/user.entity';
 import { VersionHistoryEntity } from 'src/entities/version-history.entity';
 
 export const entities = [
+  APIKeyEntity,
   ActivityEntity,
   AlbumEntity,
   AlbumUserEntity,
-  APIKeyEntity,
   AssetEntity,
   AssetFaceEntity,
   AssetFileEntity,
@@ -39,11 +40,14 @@ export const entities = [
   ExifEntity,
   FaceSearchEntity,
   GeodataPlacesEntity,
-  NaturalEarthCountriesEntity,
+  LibraryEntity,
   MemoryEntity,
   MoveEntity,
+  NaturalEarthCountriesEntity,
   PartnerEntity,
   PersonEntity,
+  QualityEntity,
+  SessionEntity,
   SharedLinkEntity,
   SmartSearchEntity,
   StackEntity,
@@ -51,7 +55,5 @@ export const entities = [
   TagEntity,
   UserEntity,
   UserMetadataEntity,
-  SessionEntity,
-  LibraryEntity,
   VersionHistoryEntity,
 ];

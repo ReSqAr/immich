@@ -30,6 +30,7 @@ import { newOAuthRepositoryMock } from 'test/repositories/oauth.repository.mock'
 import { newPartnerRepositoryMock } from 'test/repositories/partner.repository.mock';
 import { newPersonRepositoryMock } from 'test/repositories/person.repository.mock';
 import { newProcessRepositoryMock } from 'test/repositories/process.repository.mock';
+import { newQualityRepositoryMock } from 'test/repositories/quality.repository.mock';
 import { newSearchRepositoryMock } from 'test/repositories/search.repository.mock';
 import { newServerInfoRepositoryMock } from 'test/repositories/server-info.repository.mock';
 import { newSessionRepositoryMock } from 'test/repositories/session.repository.mock';
@@ -87,6 +88,7 @@ export const newTestService = <T extends BaseService>(
   const partnerMock = newPartnerRepositoryMock();
   const personMock = newPersonRepositoryMock();
   const processMock = newProcessRepositoryMock();
+  const qualityMock = newQualityRepositoryMock();
   const searchMock = newSearchRepositoryMock();
   const serverInfoMock = newServerInfoRepositoryMock();
   const sessionMock = newSessionRepositoryMock();
@@ -128,6 +130,7 @@ export const newTestService = <T extends BaseService>(
     partnerMock,
     personMock,
     processMock,
+    qualityMock,
     searchMock,
     serverInfoMock,
     sessionMock,
@@ -171,6 +174,7 @@ export const newTestService = <T extends BaseService>(
     partnerMock,
     personMock,
     processMock,
+    qualityMock,
     searchMock,
     serverInfoMock,
     sessionMock,

@@ -8,6 +8,7 @@ export enum QueueName {
   FACE_DETECTION = 'faceDetection',
   FACIAL_RECOGNITION = 'facialRecognition',
   SMART_SEARCH = 'smartSearch',
+  IQA_SCORE = 'iqaScore',
   DUPLICATE_DETECTION = 'duplicateDetection',
   BACKGROUND_TASK = 'backgroundTask',
   STORAGE_TEMPLATE_MIGRATION = 'storageTemplateMigration',
@@ -98,6 +99,10 @@ export enum JobName {
   // smart search
   QUEUE_SMART_SEARCH = 'queue-smart-search',
   SMART_SEARCH = 'smart-search',
+
+  // IQA score
+  QUEUE_IQA_SCORE_GENERATION = 'queue-iqa-score-generation',
+  IQA_SCORE_GENERATION = 'iqa-score-generation',
 
   QUEUE_TRASH_EMPTY = 'queue-trash-empty',
 
@@ -262,6 +267,12 @@ export type JobItem =
   // Smart Search
   | { name: JobName.QUEUE_SMART_SEARCH; data: IBaseJob }
   | { name: JobName.SMART_SEARCH; data: IEntityJob }
+
+  // IQA score
+  | { name: JobName.QUEUE_IQA_SCORE_GENERATION; data: IBaseJob }
+  | { name: JobName.IQA_SCORE_GENERATION; data: IEntityJob }
+
+  // Trash
   | { name: JobName.QUEUE_TRASH_EMPTY; data?: IBaseJob }
 
   // Duplicate Detection

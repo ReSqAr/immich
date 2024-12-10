@@ -69,6 +69,9 @@ export class AllJobStatusResponseDto implements Record<QueueName, JobStatusDto> 
   [QueueName.SMART_SEARCH]!: JobStatusDto;
 
   @ApiProperty({ type: JobStatusDto })
+  [QueueName.IQA_SCORE]!: JobStatusDto;
+
+  @ApiProperty({ type: JobStatusDto })
   [QueueName.STORAGE_TEMPLATE_MIGRATION]!: JobStatusDto;
 
   @ApiProperty({ type: JobStatusDto })

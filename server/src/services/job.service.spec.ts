@@ -33,11 +33,11 @@ describe(JobService.name, () => {
     it('should update concurrency', () => {
       sut.onConfigUpdate({ newConfig: defaults, oldConfig: {} as SystemConfig });
 
-      expect(jobMock.setConcurrency).toHaveBeenCalledTimes(15);
+      expect(jobMock.setConcurrency).toHaveBeenCalledTimes(16);
       expect(jobMock.setConcurrency).toHaveBeenNthCalledWith(5, QueueName.FACIAL_RECOGNITION, 1);
-      expect(jobMock.setConcurrency).toHaveBeenNthCalledWith(7, QueueName.DUPLICATE_DETECTION, 1);
-      expect(jobMock.setConcurrency).toHaveBeenNthCalledWith(8, QueueName.BACKGROUND_TASK, 5);
-      expect(jobMock.setConcurrency).toHaveBeenNthCalledWith(9, QueueName.STORAGE_TEMPLATE_MIGRATION, 1);
+      expect(jobMock.setConcurrency).toHaveBeenNthCalledWith(8, QueueName.DUPLICATE_DETECTION, 1);
+      expect(jobMock.setConcurrency).toHaveBeenNthCalledWith(9, QueueName.BACKGROUND_TASK, 5);
+      expect(jobMock.setConcurrency).toHaveBeenNthCalledWith(10, QueueName.STORAGE_TEMPLATE_MIGRATION, 1);
     });
   });
 
@@ -92,6 +92,7 @@ describe(JobService.name, () => {
         [QueueName.BACKGROUND_TASK]: expectedJobStatus,
         [QueueName.DUPLICATE_DETECTION]: expectedJobStatus,
         [QueueName.SMART_SEARCH]: expectedJobStatus,
+        [QueueName.IQA_SCORE]: expectedJobStatus,
         [QueueName.METADATA_EXTRACTION]: expectedJobStatus,
         [QueueName.SEARCH]: expectedJobStatus,
         [QueueName.STORAGE_TEMPLATE_MIGRATION]: expectedJobStatus,
@@ -160,6 +161,14 @@ describe(JobService.name, () => {
       await sut.handleCommand(QueueName.SMART_SEARCH, { command: JobCommand.START, force: false });
 
       expect(jobMock.queue).toHaveBeenCalledWith({ name: JobName.QUEUE_SMART_SEARCH, data: { force: false } });
+    });
+
+    it('should handle a start iqa score command', async () => {
+      jobMock.getQueueStatus.mockResolvedValue({ isActive: false, isPaused: false });
+
+      await sut.handleCommand(QueueName.IQA_SCORE, { command: JobCommand.START, force: false });
+
+      expect(jobMock.queue).toHaveBeenCalledWith({ name: JobName.QUEUE_IQA_SCORE_GENERATION, data: { force: false } });
     });
 
     it('should handle a start metadata extraction command', async () => {
@@ -264,11 +273,11 @@ describe(JobService.name, () => {
       },
       {
         item: { name: JobName.GENERATE_THUMBNAILS, data: { id: 'asset-1', source: 'upload' } },
-        jobs: [JobName.SMART_SEARCH, JobName.FACE_DETECTION, JobName.VIDEO_CONVERSION],
+        jobs: [JobName.SMART_SEARCH, JobName.IQA_SCORE_GENERATION, JobName.FACE_DETECTION, JobName.VIDEO_CONVERSION],
       },
       {
         item: { name: JobName.GENERATE_THUMBNAILS, data: { id: 'asset-live-image', source: 'upload' } },
-        jobs: [JobName.SMART_SEARCH, JobName.FACE_DETECTION, JobName.VIDEO_CONVERSION],
+        jobs: [JobName.SMART_SEARCH, JobName.IQA_SCORE_GENERATION, JobName.FACE_DETECTION, JobName.VIDEO_CONVERSION],
       },
       {
         item: { name: JobName.SMART_SEARCH, data: { id: 'asset-1' } },

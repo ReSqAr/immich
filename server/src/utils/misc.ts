@@ -11,7 +11,7 @@ import _ from 'lodash';
 import { writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { SystemConfig } from 'src/config';
-import { CLIP_MODEL_INFO, serverVersion } from 'src/constants';
+import { CLIP_MODEL_INFO, IQA_MODELS, serverVersion } from 'src/constants';
 import { ImmichCookie, ImmichHeader, MetadataKey } from 'src/enum';
 import { ILoggerRepository } from 'src/interfaces/logger.interface';
 
@@ -88,6 +88,8 @@ export const unsetDeep = (object: unknown, key: string) => {
 const isMachineLearningEnabled = (machineLearning: SystemConfig['machineLearning']) => machineLearning.enabled;
 export const isSmartSearchEnabled = (machineLearning: SystemConfig['machineLearning']) =>
   isMachineLearningEnabled(machineLearning) && machineLearning.clip.enabled;
+export const isIQAEnabled = (machineLearning: SystemConfig['machineLearning']) =>
+  isMachineLearningEnabled(machineLearning) && machineLearning.iqa.enabled;
 export const isFacialRecognitionEnabled = (machineLearning: SystemConfig['machineLearning']) =>
   isMachineLearningEnabled(machineLearning) && machineLearning.facialRecognition.enabled;
 export const isDuplicateDetectionEnabled = (machineLearning: SystemConfig['machineLearning']) =>
@@ -122,6 +124,10 @@ export function getCLIPModelInfo(modelName: string) {
   }
 
   return modelInfo;
+}
+
+export function isIQAModelKnown(modelName: string) {
+  return IQA_MODELS.includes(modelName);
 }
 
 function sortKeys<T>(target: T): T {
