@@ -138,6 +138,7 @@ export const getJobName = derived(t, ($t) => {
       [JobName.MetadataExtraction]: $t('admin.metadata_extraction_job'),
       [JobName.Sidecar]: $t('admin.sidecar_job'),
       [JobName.SmartSearch]: $t('admin.machine_learning_smart_search'),
+      [JobName.IqaScore]: $t('admin.machine_learning_quality_job'),
       [JobName.DuplicateDetection]: $t('admin.machine_learning_duplicate_detection'),
       [JobName.FaceDetection]: $t('admin.face_detection'),
       [JobName.FacialRecognition]: $t('admin.machine_learning_facial_recognition'),

@@ -26,6 +26,7 @@
     JobName.Library,
     JobName.Sidecar,
     JobName.SmartSearch,
+    JobName.IqaScore,
     JobName.FaceDetection,
     JobName.FacialRecognition,
     JobName.VideoConversion,
