@@ -7853,6 +7853,9 @@
           "facialRecognition": {
             "$ref": "#/components/schemas/JobStatusDto"
           },
+          "iqaScore": {
+            "$ref": "#/components/schemas/JobStatusDto"
+          },
           "library": {
             "$ref": "#/components/schemas/JobStatusDto"
           },
@@ -7890,6 +7893,7 @@
           "duplicateDetection",
           "faceDetection",
           "facialRecognition",
+          "iqaScore",
           "library",
           "metadataExtraction",
           "migration",
@@ -9359,6 +9363,21 @@
         },
         "type": "object"
       },
+      "IQAScoreConfig": {
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "modelName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "enabled",
+          "modelName"
+        ],
+        "type": "object"
+      },
       "ImageFormat": {
         "enum": [
           "jpeg",
@@ -9448,6 +9467,7 @@
           "faceDetection",
           "facialRecognition",
           "smartSearch",
+          "iqaScore",
           "duplicateDetection",
           "backgroundTask",
           "storageTemplateMigration",
@@ -11048,6 +11068,9 @@
           "passwordLogin": {
             "type": "boolean"
           },
+          "quality": {
+            "type": "boolean"
+          },
           "reverseGeocoding": {
             "type": "boolean"
           },
@@ -11074,6 +11097,7 @@
           "oauth",
           "oauthAutoLaunch",
           "passwordLogin",
+          "quality",
           "reverseGeocoding",
           "search",
           "sidecar",
@@ -11963,6 +11987,9 @@
           "faceDetection": {
             "$ref": "#/components/schemas/JobSettingsDto"
           },
+          "iqaScore": {
+            "$ref": "#/components/schemas/JobSettingsDto"
+          },
           "library": {
             "$ref": "#/components/schemas/JobSettingsDto"
           },
@@ -11994,6 +12021,7 @@
         "required": [
           "backgroundTask",
           "faceDetection",
+          "iqaScore",
           "library",
           "metadataExtraction",
           "migration",
@@ -12080,6 +12108,9 @@
           "facialRecognition": {
             "$ref": "#/components/schemas/FacialRecognitionConfig"
           },
+          "iqa": {
+            "$ref": "#/components/schemas/IQAScoreConfig"
+          },
           "url": {
             "deprecated": true,
             "description": "This property was deprecated in v1.122.0",
@@ -12100,6 +12131,7 @@
           "duplicateDetection",
           "enabled",
           "facialRecognition",
+          "iqa",
           "urls"
         ],
         "type": "object"

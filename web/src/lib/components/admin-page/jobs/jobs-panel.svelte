@@ -98,6 +98,14 @@
       missingText: $t('missing'),
       disabled: !$featureFlags.smartSearch,
     },
+    [JobName.IqaScore]: {
+      icon: mdiImageSearch,
+      title: $getJobName(JobName.IqaScore),
+      subtitle: $t('admin.quality_job_description'),
+      allText: $t('all'),
+      missingText: $t('missing'),
+      disabled: !$featureFlags.quality,
+    },
     [JobName.DuplicateDetection]: {
       icon: mdiContentDuplicate,
       title: $getJobName(JobName.DuplicateDetection),

@@ -534,6 +534,7 @@ export type AllJobStatusResponseDto = {
     duplicateDetection: JobStatusDto;
     faceDetection: JobStatusDto;
     facialRecognition: JobStatusDto;
+    iqaScore: JobStatusDto;
     library: JobStatusDto;
     metadataExtraction: JobStatusDto;
     migration: JobStatusDto;
@@ -949,6 +950,7 @@ export type ServerFeaturesDto = {
     oauth: boolean;
     oauthAutoLaunch: boolean;
     passwordLogin: boolean;
+    quality: boolean;
     reverseGeocoding: boolean;
     search: boolean;
     sidecar: boolean;
@@ -1140,6 +1142,7 @@ export type JobSettingsDto = {
 export type SystemConfigJobDto = {
     backgroundTask: JobSettingsDto;
     faceDetection: JobSettingsDto;
+    iqaScore: JobSettingsDto;
     library: JobSettingsDto;
     metadataExtraction: JobSettingsDto;
     migration: JobSettingsDto;
@@ -1180,11 +1183,16 @@ export type FacialRecognitionConfig = {
     minScore: number;
     modelName: string;
 };
+export type IqaScoreConfig = {
+    enabled: boolean;
+    modelName: string;
+};
 export type SystemConfigMachineLearningDto = {
     clip: ClipConfig;
     duplicateDetection: DuplicateDetectionConfig;
     enabled: boolean;
     facialRecognition: FacialRecognitionConfig;
+    iqa: IqaScoreConfig;
     /** This property was deprecated in v1.122.0 */
     url?: string;
     urls: string[];
@@ -3483,6 +3491,7 @@ export enum JobName {
     FaceDetection = "faceDetection",
     FacialRecognition = "facialRecognition",
     SmartSearch = "smartSearch",
+    IqaScore = "iqaScore",
     DuplicateDetection = "duplicateDetection",
     BackgroundTask = "backgroundTask",
     StorageTemplateMigration = "storageTemplateMigration",
