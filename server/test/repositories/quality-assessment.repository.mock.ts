@@ -5,5 +5,6 @@ export const newQualityAssessmentRepositoryMock = (): Mocked<IQualityAssessmentR
   return {
     upsert: vitest.fn(),
     clearAllIQAScores: vitest.fn(),
+    scoreDistribution: vitest.fn(),
   };
 };

@@ -44,10 +44,6 @@ export function searchAssetBuilder(
     builder.leftJoinAndSelect(`${builder.alias}.exifInfo`, 'exifInfo');
   }
 
-  if (options.withQualityAssessment) {
-    builder.leftJoinAndSelect(`${builder.alias}.qualityAssessment`, 'qualityAssessment');
-  }
-
   if (hasExifQuery) {
     if (options.withExif) {
       builder.leftJoinAndSelect(`${builder.alias}.exifInfo`, 'exifInfo');
@@ -62,6 +58,24 @@ export function searchAssetBuilder(
         builder.andWhere(`exifInfo.${key} = :${key}`, { [key]: value });
       }
     }
+  }
+
+  const { minimumScore: qualityAssessmentMinimumScore } = options;
+  const hasQualityAssessmentQuery = qualityAssessmentMinimumScore !== undefined;
+  if (options.withQualityAssessment && !hasQualityAssessmentQuery) {
+    builder.leftJoinAndSelect(`${builder.alias}.qualityAssessment`, 'qualityAssessment');
+  }
+
+  if (hasQualityAssessmentQuery) {
+    if (options.withQualityAssessment) {
+      builder.leftJoinAndSelect(`${builder.alias}.qualityAssessment`, 'qualityAssessment');
+    } else {
+      builder.leftJoin(`${builder.alias}.qualityAssessment`, 'qualityAssessment');
+    }
+
+    builder.andWhere(`qualityAssessment.score >= :qualityAssessmentMinimumScore`, {
+      qualityAssessmentMinimumScore,
+    });
   }
 
   const id = _.pick(options, ['checksum', 'deviceAssetId', 'deviceId', 'id', 'libraryId']);

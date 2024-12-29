@@ -191,6 +191,13 @@ function findItemForRandom<T>(items: WeightedItem<T>[], random: number): T | und
   return items.find((item) => item.leftCumulative <= targetValue && targetValue < item.rightCumulative)?.item;
 }
 
+function capitalizeWords(str: string): string {
+  return str
+    .split(' ')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
 function randomMemorylaneType(seed: number) {
   const weightedTypes = computeCumulativeWeights(MEMORYLANE_WEIGHTS, (item) => item.weight);
 
@@ -203,9 +210,6 @@ export function selectRandomQuery(seed: number): string {
 
   const random = lcgToFloat(lcg(seed));
   const selected = findItemForRandom(weightedQueries, random);
-  console.log(
-    `random=${random} selected=${JSON.stringify(selected)} weightedQueries=${JSON.stringify(weightedQueries)}`,
-  );
 
   return selected?.query ?? 'beautiful photo';
 }
@@ -288,14 +292,17 @@ export class MemorylaneService extends BaseService {
       query,
       machineLearning.clip,
     );
-    const options = { userIds, embedding, withQualityAssessment: true, withExif: true };
+
+    const { mean, stddev } = await this.qualityAssessmentRepository.scoreDistribution(userIds);
+    const minimumScore = mean + stddev;
+    const options = { userIds, embedding, withQualityAssessment: true, withExif: true, minimumScore };
     const result = await this.searchRepository.searchSmart(pagination, options);
     const selectedAssets = selectRandomPhotos(result.items, seed, limit);
 
     return {
       id,
       type: MemorylaneType.SIMILARITY,
-      title: query,
+      title: capitalizeWords(query),
       parameter: seed,
       assets: selectedAssets.map((asset) => mapAsset(asset)),
     };

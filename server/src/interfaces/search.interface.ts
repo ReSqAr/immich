@@ -114,6 +114,10 @@ export interface SearchPeopleOptions {
   personIds?: string[];
 }
 
+export interface SearchQualityAssessementOptions {
+  minimumScore?: number;
+}
+
 export interface SearchOrderOptions {
   orderDirection?: 'ASC' | 'DESC';
 }
@@ -130,7 +134,8 @@ type BaseAssetSearchOptions = SearchDateOptions &
   SearchPathOptions &
   SearchStatusOptions &
   SearchUserIdOptions &
-  SearchPeopleOptions;
+  SearchPeopleOptions &
+  SearchQualityAssessementOptions;
 
 export type AssetSearchOptions = BaseAssetSearchOptions & SearchRelationOptions;
 
@@ -144,7 +149,8 @@ export type SmartSearchOptions = SearchDateOptions &
   SearchOneToOneRelationOptions &
   SearchStatusOptions &
   SearchUserIdOptions &
-  SearchPeopleOptions;
+  SearchPeopleOptions &
+  SearchQualityAssessementOptions;
 
 export interface FaceEmbeddingSearch extends SearchEmbeddingOptions {
   hasPerson?: boolean;
