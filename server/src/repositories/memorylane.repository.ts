@@ -560,7 +560,7 @@ data AS (
     SELECT
         aa.id,
         aa.ts,
-        (1 + COALESCE(aa.quality_score, 0)) AS weight
+        COALESCE(aa.quality_score, 1) AS weight
     FROM asset_analysis aa
     JOIN asset_faces af ON aa.id = af."assetId"
     JOIN chosen_person cp ON af."personId" = cp.person_id
