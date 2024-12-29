@@ -236,7 +236,7 @@ WITH cluster_data AS (
         ad.ts,
         q.score
     FROM asset_dbscan ad
-    LEFT JOIN quality q ON ad.id = q."assetId"
+    LEFT JOIN quality_assessment q ON ad.id = q."assetId"
 ),
 normalized_scores AS (
     SELECT
@@ -344,6 +344,7 @@ WITH final as (
     LEFT JOIN exif e ON lp.id = e."assetId"
     LEFT JOIN quality_assessment q ON lp.id = q."assetId"
 )
+SELECT * FROM final ORDER BY "ownerId", ts, id;  -- Modified ordering
 `
 
 export class MemorylaneMaterialisedViews1735468387695 implements MigrationInterface {
