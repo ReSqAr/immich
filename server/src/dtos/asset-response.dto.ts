@@ -51,6 +51,7 @@ export class AssetResponseDto extends SanitizedAssetResponseDto {
   checksum!: string;
   stack?: AssetStackResponseDto | null;
   duplicateId?: string | null;
+  qualityAssessmentScore?: number;
 
   @PropertyLifecycle({ deprecatedAt: 'v1.113.0' })
   resized?: boolean;
@@ -149,6 +150,7 @@ export function mapAsset(entity: AssetEntity, options: AssetMapOptions = {}): As
     hasMetadata: true,
     duplicateId: entity.duplicateId,
     resized: true,
+    qualityAssessmentScore: entity.qualityScore?.score,
   };
 }
 

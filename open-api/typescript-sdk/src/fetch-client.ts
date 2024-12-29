@@ -261,6 +261,7 @@ export type AssetResponseDto = {
     owner?: UserResponseDto;
     ownerId: string;
     people?: PersonWithFacesResponseDto[];
+    qualityAssessmentScore?: number;
     /** This property was deprecated in v1.113.0 */
     resized?: boolean;
     stack?: (AssetStackResponseDto) | null;
@@ -634,6 +635,13 @@ export type MemoryUpdateDto = {
     isSaved?: boolean;
     memoryAt?: string;
     seenAt?: string;
+};
+export type MemorylaneResponseDto = {
+    assets: AssetResponseDto[];
+    id: string;
+    parameter: number;
+    title: string;
+    "type": MemorylaneType;
 };
 export type TemplateDto = {
     template: string;
@@ -2251,6 +2259,21 @@ export function addMemoryAssets({ id, bulkIdsDto }: {
         body: bulkIdsDto
     })));
 }
+export function getMemoryLane2({ id, limit, $type }: {
+    id: string;
+    limit?: number;
+    $type?: MemorylaneType;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 200;
+        data: MemorylaneResponseDto;
+    }>(`/memorylane/${encodeURIComponent(id)}${QS.query(QS.explode({
+        limit,
+        "type": $type
+    }))}`, {
+        ...opts
+    }));
+}
 export function getNotificationTemplate({ name, templateDto }: {
     name: string;
     templateDto: TemplateDto;
@@ -3482,7 +3505,8 @@ export enum EntityType {
 export enum ManualJobName {
     PersonCleanup = "person-cleanup",
     TagCleanup = "tag-cleanup",
-    UserCleanup = "user-cleanup"
+    UserCleanup = "user-cleanup",
+    MemorylaneRefresh = "memorylane-refresh"
 }
 export enum JobName {
     ThumbnailGeneration = "thumbnailGeneration",
@@ -3511,6 +3535,11 @@ export enum JobCommand {
 }
 export enum MemoryType {
     OnThisDay = "on_this_day"
+}
+export enum MemorylaneType {
+    RecentHighlights = "recent_highlights",
+    Cluster = "cluster",
+    Similarity = "similarity"
 }
 export enum PartnerDirection {
     SharedBy = "shared-by",

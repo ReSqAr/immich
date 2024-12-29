@@ -23,6 +23,7 @@ import { IMachineLearningRepository } from 'src/interfaces/machine-learning.inte
 import { IMapRepository } from 'src/interfaces/map.interface';
 import { IMediaRepository } from 'src/interfaces/media.interface';
 import { IMemoryRepository } from 'src/interfaces/memory.interface';
+import { IMemorylaneRepository } from 'src/interfaces/memorylane.interface';
 import { IMetadataRepository } from 'src/interfaces/metadata.interface';
 import { IMoveRepository } from 'src/interfaces/move.interface';
 import { INotificationRepository } from 'src/interfaces/notification.interface';
@@ -54,10 +55,10 @@ export class BaseService {
     @Inject(ILoggerRepository) protected logger: ILoggerRepository,
     @Inject(IAccessRepository) protected accessRepository: IAccessRepository,
     @Inject(IActivityRepository) protected activityRepository: IActivityRepository,
-    @Inject(IAuditRepository) protected auditRepository: IAuditRepository,
     @Inject(IAlbumRepository) protected albumRepository: IAlbumRepository,
     @Inject(IAlbumUserRepository) protected albumUserRepository: IAlbumUserRepository,
     @Inject(IAssetRepository) protected assetRepository: IAssetRepository,
+    @Inject(IAuditRepository) protected auditRepository: IAuditRepository,
     @Inject(IConfigRepository) protected configRepository: IConfigRepository,
     @Inject(ICronRepository) protected cronRepository: ICronRepository,
     @Inject(ICryptoRepository) protected cryptoRepository: ICryptoRepository,
@@ -70,6 +71,7 @@ export class BaseService {
     @Inject(IMapRepository) protected mapRepository: IMapRepository,
     @Inject(IMediaRepository) protected mediaRepository: IMediaRepository,
     @Inject(IMemoryRepository) protected memoryRepository: IMemoryRepository,
+    @Inject(IMemorylaneRepository) protected memorylaneRepository: IMemorylaneRepository,
     @Inject(IMetadataRepository) protected metadataRepository: IMetadataRepository,
     @Inject(IMoveRepository) protected moveRepository: IMoveRepository,
     @Inject(INotificationRepository) protected notificationRepository: INotificationRepository,

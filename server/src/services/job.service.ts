@@ -30,6 +30,10 @@ const asJobItem = (dto: JobCreateDto): JobItem => {
       return { name: JobName.USER_DELETE_CHECK };
     }
 
+    case ManualJobName.MEMORYLANE_REFRESH: {
+      return { name: JobName.MEMORYLANE_REFRESH, data: { delay: 0 } };
+    }
+
     default: {
       throw new BadRequestException('Invalid job name');
     }
@@ -245,6 +249,7 @@ export class JobService extends BaseService {
           }
         }
         await this.jobRepository.queue({ name: JobName.LINK_LIVE_PHOTOS, data: item.data });
+        await this.jobRepository.queue({ name: JobName.MEMORYLANE_REFRESH, data: { delay: 60_000 } });
         break;
       }
 
@@ -304,6 +309,11 @@ export class JobService extends BaseService {
         if (item.data.source === 'upload') {
           await this.jobRepository.queue({ name: JobName.DUPLICATE_DETECTION, data: item.data });
         }
+        break;
+      }
+
+      case JobName.IQA_SCORE_GENERATION: {
+        await this.jobRepository.queue({ name: JobName.MEMORYLANE_REFRESH, data: { delay: 60_000 } });
         break;
       }
 

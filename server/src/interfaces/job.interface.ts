@@ -104,6 +104,9 @@ export enum JobName {
   QUEUE_IQA_SCORE_GENERATION = 'queue-iqa-score-generation',
   IQA_SCORE_GENERATION = 'iqa-score-generation',
 
+  // Memorylane refresh
+  MEMORYLANE_REFRESH = 'memorylane-refresh',
+
   QUEUE_TRASH_EMPTY = 'queue-trash-empty',
 
   // duplicate detection
@@ -271,6 +274,9 @@ export type JobItem =
   // IQA score
   | { name: JobName.QUEUE_IQA_SCORE_GENERATION; data: IBaseJob }
   | { name: JobName.IQA_SCORE_GENERATION; data: IEntityJob }
+
+  // Memorylane refresh
+  | { name: JobName.MEMORYLANE_REFRESH; data: IDelayedJob }
 
   // Trash
   | { name: JobName.QUEUE_TRASH_EMPTY; data?: IBaseJob }

@@ -63,6 +63,12 @@ export enum MemoryType {
   ON_THIS_DAY = 'on_this_day',
 }
 
+export enum MemorylaneType {
+  RECENT_HIGHLIGHTS = 'recent_highlights',
+  CLUSTER = 'cluster',
+  SIMILARITY = 'similarity',
+}
+
 export enum Permission {
   ALL = 'all',
 
@@ -233,6 +239,7 @@ export enum ManualJobName {
   PERSON_CLEANUP = 'person-cleanup',
   TAG_CLEANUP = 'tag-cleanup',
   USER_CLEANUP = 'user-cleanup',
+  MEMORYLANE_REFRESH = 'memorylane-refresh',
 }
 
 export enum AssetPathType {

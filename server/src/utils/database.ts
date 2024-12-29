@@ -44,6 +44,10 @@ export function searchAssetBuilder(
     builder.leftJoinAndSelect(`${builder.alias}.exifInfo`, 'exifInfo');
   }
 
+  if (options.withQualityAssessment) {
+    builder.leftJoinAndSelect(`${builder.alias}.qualityScore`, 'quality');
+  }
+
   if (hasExifQuery) {
     if (options.withExif) {
       builder.leftJoinAndSelect(`${builder.alias}.exifInfo`, 'exifInfo');

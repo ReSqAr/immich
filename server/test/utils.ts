@@ -23,6 +23,7 @@ import { newMachineLearningRepositoryMock } from 'test/repositories/machine-lear
 import { newMapRepositoryMock } from 'test/repositories/map.repository.mock';
 import { newMediaRepositoryMock } from 'test/repositories/media.repository.mock';
 import { newMemoryRepositoryMock } from 'test/repositories/memory.repository.mock';
+import { newMemorylaneRepositoryMock } from 'test/repositories/memorylane.mock';
 import { newMetadataRepositoryMock } from 'test/repositories/metadata.repository.mock';
 import { newMoveRepositoryMock } from 'test/repositories/move.repository.mock';
 import { newNotificationRepositoryMock } from 'test/repositories/notification.repository.mock';
@@ -63,24 +64,25 @@ export const newTestService = <T extends BaseService>(
   const { metadataRepository } = overrides || {};
 
   const accessMock = newAccessRepositoryMock();
-  const loggerMock = newLoggerRepositoryMock();
-  const cronMock = newCronRepositoryMock();
-  const cryptoMock = newCryptoRepositoryMock();
   const activityMock = newActivityRepositoryMock();
-  const auditMock = newAuditRepositoryMock();
   const albumMock = newAlbumRepositoryMock();
   const albumUserMock = newAlbumUserRepositoryMock();
   const assetMock = newAssetRepositoryMock();
+  const auditMock = newAuditRepositoryMock();
   const configMock = newConfigRepositoryMock();
+  const cronMock = newCronRepositoryMock();
+  const cryptoMock = newCryptoRepositoryMock();
   const databaseMock = newDatabaseRepositoryMock();
   const eventMock = newEventRepositoryMock();
   const jobMock = newJobRepositoryMock();
   const keyMock = newKeyRepositoryMock();
   const libraryMock = newLibraryRepositoryMock();
+  const loggerMock = newLoggerRepositoryMock();
   const machineLearningMock = newMachineLearningRepositoryMock();
   const mapMock = newMapRepositoryMock();
   const mediaMock = newMediaRepositoryMock();
   const memoryMock = newMemoryRepositoryMock();
+  const memorylaneMock = newMemorylaneRepositoryMock();
   const metadataMock = (metadataRepository || newMetadataRepositoryMock()) as Mocked<IMetadataRepository>;
   const moveMock = newMoveRepositoryMock();
   const notificationMock = newNotificationRepositoryMock();
@@ -107,10 +109,10 @@ export const newTestService = <T extends BaseService>(
     loggerMock,
     accessMock,
     activityMock,
-    auditMock,
     albumMock,
     albumUserMock,
     assetMock,
+    auditMock,
     configMock,
     cronMock,
     cryptoMock,
@@ -123,6 +125,7 @@ export const newTestService = <T extends BaseService>(
     mapMock,
     mediaMock,
     memoryMock,
+    memorylaneMock,
     metadataMock,
     moveMock,
     notificationMock,
@@ -149,20 +152,20 @@ export const newTestService = <T extends BaseService>(
   return {
     sut,
     accessMock,
-    loggerMock,
-    cronMock,
-    cryptoMock,
     activityMock,
-    auditMock,
     albumMock,
     albumUserMock,
     assetMock,
+    auditMock,
     configMock,
+    cronMock,
+    cryptoMock,
     databaseMock,
     eventMock,
     jobMock,
     keyMock,
     libraryMock,
+    loggerMock,
     machineLearningMock,
     mapMock,
     mediaMock,

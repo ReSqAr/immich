@@ -148,6 +148,7 @@
     "map_settings": "Map",
     "map_settings_description": "Manage map settings",
     "map_style_description": "URL to a style.json map theme",
+    "memorylane_refresh_job": "Memorylane refresh",
     "metadata_extraction_job": "Extract metadata",
     "metadata_extraction_job_description": "Extract metadata information from each asset, such as GPS, faces and resolution",
     "metadata_faces_import_setting": "Enable face import",

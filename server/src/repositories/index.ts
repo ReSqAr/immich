@@ -17,6 +17,7 @@ import { IMachineLearningRepository } from 'src/interfaces/machine-learning.inte
 import { IMapRepository } from 'src/interfaces/map.interface';
 import { IMediaRepository } from 'src/interfaces/media.interface';
 import { IMemoryRepository } from 'src/interfaces/memory.interface';
+import { IMemorylaneRepository } from 'src/interfaces/memorylane.interface';
 import { IMetadataRepository } from 'src/interfaces/metadata.interface';
 import { IMoveRepository } from 'src/interfaces/move.interface';
 import { INotificationRepository } from 'src/interfaces/notification.interface';
@@ -57,6 +58,7 @@ import { MachineLearningRepository } from 'src/repositories/machine-learning.rep
 import { MapRepository } from 'src/repositories/map.repository';
 import { MediaRepository } from 'src/repositories/media.repository';
 import { MemoryRepository } from 'src/repositories/memory.repository';
+import { MemorylaneRepository } from 'src/repositories/memorylane.repository';
 import { MetadataRepository } from 'src/repositories/metadata.repository';
 import { MoveRepository } from 'src/repositories/move.repository';
 import { NotificationRepository } from 'src/repositories/notification.repository';
@@ -99,6 +101,7 @@ export const repositories = [
   { provide: IMapRepository, useClass: MapRepository },
   { provide: IMediaRepository, useClass: MediaRepository },
   { provide: IMemoryRepository, useClass: MemoryRepository },
+  { provide: IMemorylaneRepository, useClass: MemorylaneRepository },
   { provide: IMetadataRepository, useClass: MetadataRepository },
   { provide: IMoveRepository, useClass: MoveRepository },
   { provide: INotificationRepository, useClass: NotificationRepository },

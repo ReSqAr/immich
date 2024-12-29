@@ -3430,6 +3430,64 @@
         ]
       }
     },
+    "/memorylane/{id}": {
+      "get": {
+        "operationId": "getMemoryLane",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/MemorylaneType"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemorylaneResponseDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          },
+          {
+            "cookie": []
+          },
+          {
+            "api_key": []
+          }
+        ],
+        "tags": [
+          "MemoryLane"
+        ]
+      }
+    },
     "/notifications/templates/{name}": {
       "post": {
         "operationId": "getNotificationTemplate",
@@ -8513,6 +8571,9 @@
             },
             "type": "array"
           },
+          "qualityAssessmentScore": {
+            "type": "number"
+          },
           "resized": {
             "deprecated": true,
             "description": "This property was deprecated in v1.113.0",
@@ -9708,7 +9769,8 @@
         "enum": [
           "person-cleanup",
           "tag-cleanup",
-          "user-cleanup"
+          "user-cleanup",
+          "memorylane-refresh"
         ],
         "type": "string"
       },
@@ -9928,6 +9990,44 @@
           }
         },
         "type": "object"
+      },
+      "MemorylaneResponseDto": {
+        "properties": {
+          "assets": {
+            "items": {
+              "$ref": "#/components/schemas/AssetResponseDto"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "parameter": {
+            "type": "number"
+          },
+          "title": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/MemorylaneType"
+          }
+        },
+        "required": [
+          "assets",
+          "id",
+          "parameter",
+          "title",
+          "type"
+        ],
+        "type": "object"
+      },
+      "MemorylaneType": {
+        "enum": [
+          "recent_highlights",
+          "cluster",
+          "similarity"
+        ],
+        "type": "string"
       },
       "MergePersonDto": {
         "properties": {

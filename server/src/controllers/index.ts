@@ -14,6 +14,7 @@ import { JobController } from 'src/controllers/job.controller';
 import { LibraryController } from 'src/controllers/library.controller';
 import { MapController } from 'src/controllers/map.controller';
 import { MemoryController } from 'src/controllers/memory.controller';
+import { MemoryLaneController } from 'src/controllers/memorylane.controller';
 import { NotificationController } from 'src/controllers/notification.controller';
 import { OAuthController } from 'src/controllers/oauth.controller';
 import { PartnerController } from 'src/controllers/partner.controller';
@@ -49,6 +50,7 @@ export const controllers = [
   LibraryController,
   MapController,
   MemoryController,
+  MemoryLaneController,
   NotificationController,
   OAuthController,
   PartnerController,

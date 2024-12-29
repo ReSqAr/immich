@@ -16,6 +16,7 @@ import { LibraryService } from 'src/services/library.service';
 import { MapService } from 'src/services/map.service';
 import { MediaService } from 'src/services/media.service';
 import { MemoryService } from 'src/services/memory.service';
+import { MemorylaneService } from 'src/services/memorylane.service';
 import { MetadataService } from 'src/services/metadata.service';
 import { NotificationService } from 'src/services/notification.service';
 import { PartnerService } from 'src/services/partner.service';
@@ -59,16 +60,17 @@ export const services = [
   MapService,
   MediaService,
   MemoryService,
+  MemorylaneService,
   MetadataService,
   NotificationService,
   PartnerService,
   PersonService,
+  QualityService,
   SearchService,
   ServerService,
   SessionService,
   SharedLinkService,
   SmartInfoService,
-  QualityService,
   StackService,
   StorageService,
   StorageTemplateService,

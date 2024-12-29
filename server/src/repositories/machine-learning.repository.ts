@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { readFile } from 'node:fs/promises';
-import {CLIPConfig, IQAScoreConfig} from 'src/dtos/model-config.dto';
+import { CLIPConfig, IQAScoreConfig } from 'src/dtos/model-config.dto';
 import { ILoggerRepository } from 'src/interfaces/logger.interface';
 import {
   ClipTextualResponse,

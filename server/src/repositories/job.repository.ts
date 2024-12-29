@@ -230,6 +230,9 @@ export class JobRepository implements IJobRepository {
       case JobName.QUEUE_FACIAL_RECOGNITION: {
         return { jobId: JobName.QUEUE_FACIAL_RECOGNITION };
       }
+      case JobName.MEMORYLANE_REFRESH: {
+        return { jobId: JobName.MEMORYLANE_REFRESH, delay: item.data?.delay };
+      }
       default: {
         return null;
       }
