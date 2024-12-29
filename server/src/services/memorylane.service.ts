@@ -345,7 +345,7 @@ export class MemorylaneService extends BaseService {
   }
 
   @OnJob({ name: JobName.MEMORYLANE_REFRESH, queue: QueueName.BACKGROUND_TASK })
-  async handleRefershMemorylane({}: JobOf<JobName.QUEUE_IQA_SCORE>): Promise<JobStatus> {
+  async handleRefreshMemorylane({}: JobOf<JobName.QUEUE_IQA_SCORE>): Promise<JobStatus> {
     await this.memorylaneRepository.refresh();
     return JobStatus.SUCCESS;
   }
