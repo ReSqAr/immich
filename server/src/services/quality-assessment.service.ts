@@ -8,11 +8,11 @@ import { ArgOf } from 'src/interfaces/event.interface';
 import { JOBS_ASSET_PAGINATION_SIZE, JobName, JobOf, JobStatus, QueueName } from 'src/interfaces/job.interface';
 import { BaseService } from 'src/services/base.service';
 import { getAssetFiles } from 'src/utils/asset.util';
-import { isIQAEnabled, isIQAModelKnown } from 'src/utils/misc';
+import { isIQAModelKnown, isQualityAssessmentEnabled } from 'src/utils/misc';
 import { usePagination } from 'src/utils/pagination';
 
 @Injectable()
-export class QualityService extends BaseService {
+export class QualityAssessmentService extends BaseService {
   @OnEvent({ name: 'config.init' })
   async onConfigInit({ newConfig }: ArgOf<'config.init'>) {
     await this.init(newConfig);
@@ -33,7 +33,7 @@ export class QualityService extends BaseService {
   }
 
   private async init(newConfig: SystemConfig, oldConfig?: SystemConfig) {
-    if (this.worker !== ImmichWorker.MICROSERVICES || !isIQAEnabled(newConfig.machineLearning)) {
+    if (this.worker !== ImmichWorker.MICROSERVICES || !isQualityAssessmentEnabled(newConfig.machineLearning)) {
       return;
     }
 
@@ -54,7 +54,7 @@ export class QualityService extends BaseService {
       await this.jobRepository.waitForQueueCompletion(QueueName.BACKGROUND_TASK);
 
       this.logger.log('Quality check configuration changed, requeueing all assets for quality scoring');
-      await this.qualityRepository.clearAllIQAScores();
+      await this.qualityAssessmentRepository.clearAllIQAScores();
 
       if (!isPaused) {
         await this.jobRepository.resume(QueueName.BACKGROUND_TASK);
@@ -62,36 +62,34 @@ export class QualityService extends BaseService {
     });
   }
 
-  @OnJob({ name: JobName.QUEUE_IQA_SCORE_GENERATION, queue: QueueName.IQA_SCORE })
-  async handleQueueQualityGeneration({ force }: JobOf<JobName.QUEUE_IQA_SCORE_GENERATION>): Promise<JobStatus> {
+  @OnJob({ name: JobName.QUEUE_IQA_SCORE, queue: QueueName.IQA_SCORE })
+  async handleQueueQualityAssessmentReport({ force }: JobOf<JobName.QUEUE_IQA_SCORE>): Promise<JobStatus> {
     const { machineLearning } = await this.getConfig({ withCache: false });
-    if (!isIQAEnabled(machineLearning)) {
+    if (!isQualityAssessmentEnabled(machineLearning)) {
       return JobStatus.SKIPPED;
     }
 
     if (force) {
-      await this.qualityRepository.clearAllIQAScores();
+      await this.qualityAssessmentRepository.clearAllIQAScores();
     }
 
     const assetPagination = usePagination(JOBS_ASSET_PAGINATION_SIZE, (pagination) => {
       return force
         ? this.assetRepository.getAll(pagination, { isVisible: true })
-        : this.assetRepository.getWithout(pagination, WithoutProperty.IQA_SCORE);
+        : this.assetRepository.getWithout(pagination, WithoutProperty.QUALITY_ASSESSMENT);
     });
 
     for await (const assets of assetPagination) {
-      await this.jobRepository.queueAll(
-        assets.map((asset) => ({ name: JobName.IQA_SCORE_GENERATION, data: { id: asset.id } })),
-      );
+      await this.jobRepository.queueAll(assets.map((asset) => ({ name: JobName.IQA_SCORE, data: { id: asset.id } })));
     }
 
     return JobStatus.SUCCESS;
   }
 
-  @OnJob({ name: JobName.IQA_SCORE_GENERATION, queue: QueueName.IQA_SCORE })
-  async handleQualityGeneration({ id }: JobOf<JobName.IQA_SCORE_GENERATION>): Promise<JobStatus> {
+  @OnJob({ name: JobName.IQA_SCORE, queue: QueueName.IQA_SCORE })
+  async handleQualityAssessmentReport({ id }: JobOf<JobName.IQA_SCORE>): Promise<JobStatus> {
     const { machineLearning } = await this.getConfig({ withCache: true });
-    if (!isIQAEnabled(machineLearning)) {
+    if (!isQualityAssessmentEnabled(machineLearning)) {
       return JobStatus.SKIPPED;
     }
 
@@ -121,7 +119,7 @@ export class QualityService extends BaseService {
         machineLearning.iqa,
       );
 
-      await this.qualityRepository.upsert(asset.id, score);
+      await this.qualityAssessmentRepository.upsert(asset.id, score);
 
       return JobStatus.SUCCESS;
     } catch (error) {

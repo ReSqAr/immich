@@ -168,7 +168,7 @@ describe(JobService.name, () => {
 
       await sut.handleCommand(QueueName.IQA_SCORE, { command: JobCommand.START, force: false });
 
-      expect(jobMock.queue).toHaveBeenCalledWith({ name: JobName.QUEUE_IQA_SCORE_GENERATION, data: { force: false } });
+      expect(jobMock.queue).toHaveBeenCalledWith({ name: JobName.QUEUE_IQA_SCORE, data: { force: false } });
     });
 
     it('should handle a start metadata extraction command', async () => {
@@ -273,11 +273,11 @@ describe(JobService.name, () => {
       },
       {
         item: { name: JobName.GENERATE_THUMBNAILS, data: { id: 'asset-1', source: 'upload' } },
-        jobs: [JobName.SMART_SEARCH, JobName.IQA_SCORE_GENERATION, JobName.FACE_DETECTION, JobName.VIDEO_CONVERSION],
+        jobs: [JobName.SMART_SEARCH, JobName.IQA_SCORE, JobName.FACE_DETECTION, JobName.VIDEO_CONVERSION],
       },
       {
         item: { name: JobName.GENERATE_THUMBNAILS, data: { id: 'asset-live-image', source: 'upload' } },
-        jobs: [JobName.SMART_SEARCH, JobName.IQA_SCORE_GENERATION, JobName.FACE_DETECTION, JobName.VIDEO_CONVERSION],
+        jobs: [JobName.SMART_SEARCH, JobName.IQA_SCORE, JobName.FACE_DETECTION, JobName.VIDEO_CONVERSION],
       },
       {
         item: { name: JobName.SMART_SEARCH, data: { id: 'asset-1' } },

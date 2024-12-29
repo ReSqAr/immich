@@ -27,7 +27,7 @@ export enum WithoutProperty {
   ENCODED_VIDEO = 'encoded-video',
   EXIF = 'exif',
   SMART_SEARCH = 'smart-search',
-  IQA_SCORE = 'iqa-score',
+  QUALITY_ASSESSMENT = 'quality-assessment',
   DUPLICATE = 'duplicate',
   FACES = 'faces',
   SIDECAR = 'sidecar',

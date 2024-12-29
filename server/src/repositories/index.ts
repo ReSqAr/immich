@@ -25,7 +25,7 @@ import { IOAuthRepository } from 'src/interfaces/oauth.interface';
 import { IPartnerRepository } from 'src/interfaces/partner.interface';
 import { IPersonRepository } from 'src/interfaces/person.interface';
 import { IProcessRepository } from 'src/interfaces/process.interface';
-import { IQualityRepository } from 'src/interfaces/quality.interface';
+import { IQualityAssessmentRepository } from 'src/interfaces/quality-assessment.interface';
 import { ISearchRepository } from 'src/interfaces/search.interface';
 import { IServerInfoRepository } from 'src/interfaces/server-info.interface';
 import { ISessionRepository } from 'src/interfaces/session.interface';
@@ -66,7 +66,7 @@ import { OAuthRepository } from 'src/repositories/oauth.repository';
 import { PartnerRepository } from 'src/repositories/partner.repository';
 import { PersonRepository } from 'src/repositories/person.repository';
 import { ProcessRepository } from 'src/repositories/process.repository';
-import { QualityRepository } from 'src/repositories/quality.repository';
+import { QualityAssessmentRepository } from 'src/repositories/quality-assessment.repository';
 import { SearchRepository } from 'src/repositories/search.repository';
 import { ServerInfoRepository } from 'src/repositories/server-info.repository';
 import { SessionRepository } from 'src/repositories/session.repository';
@@ -109,7 +109,7 @@ export const repositories = [
   { provide: IPartnerRepository, useClass: PartnerRepository },
   { provide: IPersonRepository, useClass: PersonRepository },
   { provide: IProcessRepository, useClass: ProcessRepository },
-  { provide: IQualityRepository, useClass: QualityRepository },
+  { provide: IQualityAssessmentRepository, useClass: QualityAssessmentRepository },
   { provide: ISearchRepository, useClass: SearchRepository },
   { provide: IServerInfoRepository, useClass: ServerInfoRepository },
   { provide: ISessionRepository, useClass: SessionRepository },

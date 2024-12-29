@@ -150,7 +150,7 @@ export function mapAsset(entity: AssetEntity, options: AssetMapOptions = {}): As
     hasMetadata: true,
     duplicateId: entity.duplicateId,
     resized: true,
-    qualityAssessmentScore: entity.qualityScore?.score,
+    qualityAssessmentScore: entity.qualityAssessment?.score,
   };
 }
 

@@ -424,14 +424,14 @@ export class AssetRepository implements IAssetRepository {
         break;
       }
 
-      case WithoutProperty.IQA_SCORE: {
+      case WithoutProperty.QUALITY_ASSESSMENT: {
         relations = {
-          qualityScore: true,
+          qualityAssessment: true,
         };
         where = {
           isVisible: true,
           jobStatus: { previewAt: Not(IsNull()) },
-          qualityScore: {
+          qualityAssessment: {
             score: IsNull(),
           },
         };

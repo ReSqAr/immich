@@ -247,7 +247,7 @@ export function selectRandomPhotos(assets: AssetEntity[], seed: number, limit: n
 @Injectable()
 export class MemorylaneService extends BaseService {
   private async loadAssetIds(assetIds: string[], id: string, memorylane: MemorylaneType, title: string, seed: number) {
-    const assets = await this.assetRepository.getByIds(assetIds, { exifInfo: true, qualityScore: true });
+    const assets = await this.assetRepository.getByIds(assetIds, { exifInfo: true, qualityAssessment: true });
 
     // Create a map of assets by their IDs for efficient lookup
     const assetMap = new Map(assets.map((asset) => [asset.id, asset]));
@@ -333,7 +333,7 @@ export class MemorylaneService extends BaseService {
   }
 
   @OnJob({ name: JobName.MEMORYLANE_REFRESH, queue: QueueName.BACKGROUND_TASK })
-  async handleRefershMemorylane({}: JobOf<JobName.QUEUE_IQA_SCORE_GENERATION>): Promise<JobStatus> {
+  async handleRefershMemorylane({}: JobOf<JobName.QUEUE_IQA_SCORE>): Promise<JobStatus> {
     await this.memorylaneRepository.refresh();
     return JobStatus.SUCCESS;
   }

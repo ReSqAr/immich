@@ -141,7 +141,7 @@ export class JobService extends BaseService {
       }
 
       case QueueName.IQA_SCORE: {
-        return this.jobRepository.queue({ name: JobName.QUEUE_IQA_SCORE_GENERATION, data: { force } });
+        return this.jobRepository.queue({ name: JobName.QUEUE_IQA_SCORE, data: { force } });
       }
 
       case QueueName.DUPLICATE_DETECTION: {
@@ -287,7 +287,7 @@ export class JobService extends BaseService {
 
         const jobs: JobItem[] = [
           { name: JobName.SMART_SEARCH, data: item.data },
-          { name: JobName.IQA_SCORE_GENERATION, data: item.data },
+          { name: JobName.IQA_SCORE, data: item.data },
           { name: JobName.FACE_DETECTION, data: item.data },
         ];
 
@@ -312,7 +312,7 @@ export class JobService extends BaseService {
         break;
       }
 
-      case JobName.IQA_SCORE_GENERATION: {
+      case JobName.IQA_SCORE: {
         await this.jobRepository.queue({ name: JobName.MEMORYLANE_REFRESH, data: { delay: 60_000 } });
         break;
       }

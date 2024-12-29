@@ -5,27 +5,27 @@ import { IConfigRepository } from 'src/interfaces/config.interface';
 import { IDatabaseRepository } from 'src/interfaces/database.interface';
 import { IJobRepository, JobName, JobStatus } from 'src/interfaces/job.interface';
 import { IMachineLearningRepository } from 'src/interfaces/machine-learning.interface';
-import { IQualityRepository } from 'src/interfaces/quality.interface';
+import { IQualityAssessmentRepository } from 'src/interfaces/quality-assessment.interface';
 import { ISystemMetadataRepository } from 'src/interfaces/system-metadata.interface';
-import { QualityService } from 'src/services/quality.service';
+import { QualityAssessmentService } from 'src/services/quality-assessment.service';
 import { assetStub } from 'test/fixtures/asset.stub';
 import { systemConfigStub } from 'test/fixtures/system-config.stub';
 import { newTestService } from 'test/utils';
 import { Mocked } from 'vitest';
 
-describe(QualityService.name, () => {
-  let sut: QualityService;
+describe(QualityAssessmentService.name, () => {
+  let sut: QualityAssessmentService;
   let assetMock: Mocked<IAssetRepository>;
   let databaseMock: Mocked<IDatabaseRepository>;
   let jobMock: Mocked<IJobRepository>;
   let machineLearningMock: Mocked<IMachineLearningRepository>;
   let configMock: Mocked<IConfigRepository>;
-  let qualityMock: Mocked<IQualityRepository>;
+  let qualityAssessmentMock: Mocked<IQualityAssessmentRepository>;
   let systemMock: Mocked<ISystemMetadataRepository>;
 
   beforeEach(() => {
-    ({ sut, assetMock, databaseMock, jobMock, qualityMock, machineLearningMock, configMock, systemMock } =
-      newTestService(QualityService));
+    ({ sut, assetMock, databaseMock, jobMock, qualityAssessmentMock, machineLearningMock, configMock, systemMock } =
+      newTestService(QualityAssessmentService));
 
     assetMock.getByIds.mockResolvedValue([assetStub.image]);
     configMock.getWorker.mockReturnValue(ImmichWorker.MICROSERVICES);
@@ -58,14 +58,14 @@ describe(QualityService.name, () => {
       configMock.getWorker.mockReturnValue(ImmichWorker.API);
       await sut.onConfigInit({ newConfig: systemConfigStub.machineLearningEnabled as SystemConfig });
 
-      expect(qualityMock.clearAllIQAScores).not.toHaveBeenCalled();
+      expect(qualityAssessmentMock.clearAllIQAScores).not.toHaveBeenCalled();
       expect(jobMock.getQueueStatus).not.toHaveBeenCalled();
     });
 
     it('should skip if IQA is disabled', async () => {
       await sut.onConfigInit({ newConfig: systemConfigStub.machineLearningDisabled as SystemConfig });
 
-      expect(qualityMock.clearAllIQAScores).not.toHaveBeenCalled();
+      expect(qualityAssessmentMock.clearAllIQAScores).not.toHaveBeenCalled();
       expect(jobMock.getQueueStatus).not.toHaveBeenCalled();
     });
 
@@ -85,7 +85,7 @@ describe(QualityService.name, () => {
       // Override default config to disabled
       systemMock.get.mockResolvedValue(systemConfigStub.machineLearningDisabled);
 
-      const result = await sut.handleQueueQualityGeneration({ force: false });
+      const result = await sut.handleQueueQualityAssessmentReport({ force: false });
 
       expect(result).toBe(JobStatus.SKIPPED);
       expect(assetMock.getAll).not.toHaveBeenCalled();
@@ -98,13 +98,11 @@ describe(QualityService.name, () => {
         hasNextPage: false,
       });
 
-      const result = await sut.handleQueueQualityGeneration({ force: false });
+      const result = await sut.handleQueueQualityAssessmentReport({ force: false });
 
       expect(result).toBe(JobStatus.SUCCESS);
-      expect(assetMock.getWithout).toHaveBeenCalledWith({ skip: 0, take: 1000 }, WithoutProperty.IQA_SCORE);
-      expect(jobMock.queueAll).toHaveBeenCalledWith([
-        { name: JobName.IQA_SCORE_GENERATION, data: { id: assetStub.image.id } },
-      ]);
+      expect(assetMock.getWithout).toHaveBeenCalledWith({ skip: 0, take: 1000 }, WithoutProperty.QUALITY_ASSESSMENT);
+      expect(jobMock.queueAll).toHaveBeenCalledWith([{ name: JobName.IQA_SCORE, data: { id: assetStub.image.id } }]);
     });
 
     it('should handle force requeue', async () => {
@@ -113,19 +111,19 @@ describe(QualityService.name, () => {
         hasNextPage: false,
       });
 
-      const result = await sut.handleQueueQualityGeneration({ force: true });
+      const result = await sut.handleQueueQualityAssessmentReport({ force: true });
 
       expect(result).toBe(JobStatus.SUCCESS);
-      expect(qualityMock.clearAllIQAScores).toHaveBeenCalled();
+      expect(qualityAssessmentMock.clearAllIQAScores).toHaveBeenCalled();
       expect(assetMock.getAll).toHaveBeenCalled();
     });
   });
 
-  describe('handleQualityGeneration', () => {
+  describe('handleQualityAssessmentReport', () => {
     it('should skip when IQA is disabled', async () => {
       systemMock.get.mockResolvedValue(systemConfigStub.machineLearningDisabled);
 
-      const result = await sut.handleQualityGeneration({ id: 'test-id' });
+      const result = await sut.handleQualityAssessmentReport({ id: 'test-id' });
 
       expect(result).toBe(JobStatus.SKIPPED);
       expect(machineLearningMock.scoreImage).not.toHaveBeenCalled();
@@ -134,7 +132,7 @@ describe(QualityService.name, () => {
     it('should fail when asset not found', async () => {
       assetMock.getByIds.mockResolvedValue([]);
 
-      const result = await sut.handleQualityGeneration({ id: 'test-id' });
+      const result = await sut.handleQualityAssessmentReport({ id: 'test-id' });
 
       expect(result).toBe(JobStatus.FAILED);
       expect(machineLearningMock.scoreImage).not.toHaveBeenCalled();
@@ -143,33 +141,33 @@ describe(QualityService.name, () => {
     it('should handle successful score generation', async () => {
       machineLearningMock.scoreImage.mockResolvedValue(0.85);
 
-      const result = await sut.handleQualityGeneration({ id: assetStub.image.id });
+      const result = await sut.handleQualityAssessmentReport({ id: assetStub.image.id });
 
       expect(result).toBe(JobStatus.SUCCESS);
       expect(machineLearningMock.scoreImage).toHaveBeenCalled();
-      expect(qualityMock.upsert).toHaveBeenCalledWith(assetStub.image.id, 0.85);
+      expect(qualityAssessmentMock.upsert).toHaveBeenCalledWith(assetStub.image.id, 0.85);
     });
 
     it('should handle scoring errors', async () => {
       machineLearningMock.scoreImage.mockRejectedValue(new Error('Scoring failed'));
 
-      const result = await sut.handleQualityGeneration({ id: assetStub.image.id });
+      const result = await sut.handleQualityAssessmentReport({ id: assetStub.image.id });
 
       expect(result).toBe(JobStatus.FAILED);
       expect(machineLearningMock.scoreImage).toHaveBeenCalled();
-      expect(qualityMock.upsert).not.toHaveBeenCalled();
+      expect(qualityAssessmentMock.upsert).not.toHaveBeenCalled();
     });
 
     it('should handle database locks', async () => {
       databaseMock.isBusy.mockReturnValue(true);
       machineLearningMock.scoreImage.mockResolvedValue(0.85);
 
-      const result = await sut.handleQualityGeneration({ id: assetStub.image.id });
+      const result = await sut.handleQualityAssessmentReport({ id: assetStub.image.id });
 
       expect(result).toBe(JobStatus.SUCCESS);
       expect(databaseMock.wait).toHaveBeenCalled();
       expect(machineLearningMock.scoreImage).toHaveBeenCalled();
-      expect(qualityMock.upsert).toHaveBeenCalledWith(assetStub.image.id, 0.85);
+      expect(qualityAssessmentMock.upsert).toHaveBeenCalledWith(assetStub.image.id, 0.85);
     });
   });
 });

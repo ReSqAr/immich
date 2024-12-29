@@ -11168,7 +11168,7 @@
           "passwordLogin": {
             "type": "boolean"
           },
-          "quality": {
+          "qualityAssessment": {
             "type": "boolean"
           },
           "reverseGeocoding": {
@@ -11197,7 +11197,7 @@
           "oauth",
           "oauthAutoLaunch",
           "passwordLogin",
-          "quality",
+          "qualityAssessment",
           "reverseGeocoding",
           "search",
           "sidecar",

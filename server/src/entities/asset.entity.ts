@@ -4,7 +4,7 @@ import { AssetFileEntity } from 'src/entities/asset-files.entity';
 import { AssetJobStatusEntity } from 'src/entities/asset-job-status.entity';
 import { ExifEntity } from 'src/entities/exif.entity';
 import { LibraryEntity } from 'src/entities/library.entity';
-import { QualityEntity } from 'src/entities/quality.entity';
+import { QualityAssessmentEntity } from 'src/entities/quality-assessment.entity';
 import { SharedLinkEntity } from 'src/entities/shared-link.entity';
 import { SmartSearchEntity } from 'src/entities/smart-search.entity';
 import { StackEntity } from 'src/entities/stack.entity';
@@ -170,8 +170,10 @@ export class AssetEntity {
   @OneToOne(() => AssetJobStatusEntity, (jobStatus) => jobStatus.asset, { nullable: true })
   jobStatus?: AssetJobStatusEntity;
 
-  @OneToOne(() => QualityEntity, (qualityEntity) => qualityEntity.asset, { nullable: true })
-  qualityScore?: QualityEntity;
+  @OneToOne(() => QualityAssessmentEntity, (qualityAssessmentEntity) => qualityAssessmentEntity.asset, {
+    nullable: true,
+  })
+  qualityAssessment?: QualityAssessmentEntity;
 
   @Index('IDX_assets_duplicateId')
   @Column({ type: 'uuid', nullable: true })

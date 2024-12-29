@@ -18,7 +18,12 @@ import { UserStatsQueryResponse } from 'src/interfaces/user.interface';
 import { BaseService } from 'src/services/base.service';
 import { asHumanReadable } from 'src/utils/bytes';
 import { mimeTypes } from 'src/utils/mime-types';
-import { isDuplicateDetectionEnabled, isFacialRecognitionEnabled, isSmartSearchEnabled } from 'src/utils/misc';
+import {
+  isDuplicateDetectionEnabled,
+  isFacialRecognitionEnabled,
+  isQualityAssessmentEnabled,
+  isSmartSearchEnabled,
+} from 'src/utils/misc';
 
 @Injectable()
 export class ServerService extends BaseService {
@@ -83,7 +88,7 @@ export class ServerService extends BaseService {
       importFaces: metadata.faces.import,
       sidecar: true,
       search: true,
-      quality: true,
+      qualityAssessment: isQualityAssessmentEnabled(machineLearning),
       trash: trash.enabled,
       oauth: oauth.enabled,
       oauthAutoLaunch: oauth.autoLaunch,

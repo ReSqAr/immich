@@ -45,7 +45,7 @@ export function searchAssetBuilder(
   }
 
   if (options.withQualityAssessment) {
-    builder.leftJoinAndSelect(`${builder.alias}.qualityScore`, 'quality');
+    builder.leftJoinAndSelect(`${builder.alias}.qualityAssessment`, 'qualityAssessment');
   }
 
   if (hasExifQuery) {

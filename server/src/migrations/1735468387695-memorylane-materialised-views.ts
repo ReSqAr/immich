@@ -342,7 +342,7 @@ WITH final as (
     FROM asset_dbscan lp
     LEFT JOIN asset_dbscan_clusters cs ON lp.final_cluster_id = cs.final_cluster_id
     LEFT JOIN exif e ON lp.id = e."assetId"
-    LEFT JOIN quality q ON lp.id = q."assetId"
+    LEFT JOIN quality_assessment q ON lp.id = q."assetId"
 )
 `
 

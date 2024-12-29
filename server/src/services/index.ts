@@ -21,7 +21,7 @@ import { MetadataService } from 'src/services/metadata.service';
 import { NotificationService } from 'src/services/notification.service';
 import { PartnerService } from 'src/services/partner.service';
 import { PersonService } from 'src/services/person.service';
-import { QualityService } from 'src/services/quality.service';
+import { QualityAssessmentService } from 'src/services/quality-assessment.service';
 import { SearchService } from 'src/services/search.service';
 import { ServerService } from 'src/services/server.service';
 import { SessionService } from 'src/services/session.service';
@@ -65,7 +65,7 @@ export const services = [
   NotificationService,
   PartnerService,
   PersonService,
-  QualityService,
+  QualityAssessmentService,
   SearchService,
   ServerService,
   SessionService,

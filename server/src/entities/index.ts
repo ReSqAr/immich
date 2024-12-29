@@ -16,7 +16,7 @@ import { MoveEntity } from 'src/entities/move.entity';
 import { NaturalEarthCountriesEntity } from 'src/entities/natural-earth-countries.entity';
 import { PartnerEntity } from 'src/entities/partner.entity';
 import { PersonEntity } from 'src/entities/person.entity';
-import { QualityEntity } from 'src/entities/quality.entity';
+import { QualityAssessmentEntity } from 'src/entities/quality-assessment.entity';
 import { SessionEntity } from 'src/entities/session.entity';
 import { SharedLinkEntity } from 'src/entities/shared-link.entity';
 import { SmartSearchEntity } from 'src/entities/smart-search.entity';
@@ -46,7 +46,7 @@ export const entities = [
   NaturalEarthCountriesEntity,
   PartnerEntity,
   PersonEntity,
-  QualityEntity,
+  QualityAssessmentEntity,
   SessionEntity,
   SharedLinkEntity,
   SmartSearchEntity,

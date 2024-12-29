@@ -101,8 +101,8 @@ export enum JobName {
   SMART_SEARCH = 'smart-search',
 
   // IQA score
-  QUEUE_IQA_SCORE_GENERATION = 'queue-iqa-score-generation',
-  IQA_SCORE_GENERATION = 'iqa-score-generation',
+  QUEUE_IQA_SCORE = 'queue-iqa-score',
+  IQA_SCORE = 'iqa-score',
 
   // Memorylane refresh
   MEMORYLANE_REFRESH = 'memorylane-refresh',
@@ -272,8 +272,8 @@ export type JobItem =
   | { name: JobName.SMART_SEARCH; data: IEntityJob }
 
   // IQA score
-  | { name: JobName.QUEUE_IQA_SCORE_GENERATION; data: IBaseJob }
-  | { name: JobName.IQA_SCORE_GENERATION; data: IEntityJob }
+  | { name: JobName.QUEUE_IQA_SCORE; data: IBaseJob }
+  | { name: JobName.IQA_SCORE; data: IEntityJob }
 
   // Memorylane refresh
   | { name: JobName.MEMORYLANE_REFRESH; data: IDelayedJob }

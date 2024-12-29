@@ -151,7 +151,7 @@ export class ServerConfigDto {
 
 export class ServerFeaturesDto {
   smartSearch!: boolean;
-  quality!: boolean;
+  qualityAssessment!: boolean;
   duplicateDetection!: boolean;
   configFile!: boolean;
   facialRecognition!: boolean;

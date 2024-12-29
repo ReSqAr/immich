@@ -958,7 +958,7 @@ export type ServerFeaturesDto = {
     oauth: boolean;
     oauthAutoLaunch: boolean;
     passwordLogin: boolean;
-    quality: boolean;
+    qualityAssessment: boolean;
     reverseGeocoding: boolean;
     search: boolean;
     sidecar: boolean;
