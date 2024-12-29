@@ -14,6 +14,7 @@
     mdiFileXmlBox,
     mdiFolderMove,
     mdiImageSearch,
+    mdiImageFilterVintage,
     mdiLibraryShelves,
     mdiTable,
     mdiTagFaces,
@@ -99,7 +100,7 @@
       disabled: !$featureFlags.smartSearch,
     },
     [JobName.IqaScore]: {
-      icon: mdiImageSearch,
+      icon: mdiImageFilterVintage,
       title: $getJobName(JobName.IqaScore),
       subtitle: $t('admin.quality_job_description'),
       allText: $t('all'),

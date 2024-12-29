@@ -210,7 +210,7 @@
     "password_settings_description": "Manage password login settings",
     "paths_validated_successfully": "All paths validated successfully",
     "person_cleanup_job": "Person cleanup",
-    "quality_job_description": "Run machine learning on assets to support image quality assessment",
+    "quality_job_description": "Run machine learning on assets to assess image quality",
     "quota_size_gib": "Quota Size (GiB)",
     "refreshing_all_libraries": "Refreshing all libraries",
     "registration": "Admin Registration",
