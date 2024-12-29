@@ -10,6 +10,90 @@ interface Memorylane {
   assetIds: string[];
 }
 
+type LocationStatistics = {
+  cities?: Record<string, number>;
+  states?: Record<string, number>;
+  countries?: Record<string, number>;
+};
+
+type ClusterMetadata = {
+  locationStats: LocationStatistics;
+  startDate: Date;
+  endDate: Date;
+};
+
+function isLocationScattered(locations: Record<string, number>, threshold = 0.2): boolean {
+  if (!locations || Object.keys(locations).length === 0) return true;
+
+  const topFrequency = Math.max(...Object.values(locations));
+  return topFrequency < threshold;
+}
+
+function getTopLocations(locations: Record<string, number>, maxCount = 3): string[] {
+  return Object.entries(locations)
+    .sort(([, freqA], [, freqB]) => freqB - freqA)
+    .slice(0, maxCount)
+    .map(([location]) => location)
+    .filter(location => location && location.trim());
+}
+
+function formatLocationList(locations: string[]): string {
+  if (locations.length === 0) return '';
+  if (locations.length === 1) return locations[0];
+  return `${locations.slice(0, -1).join(', ')} and ${locations.slice(-1)}`;
+}
+
+function formatDateRange(startDate: Date, endDate: Date): string {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  // Same day
+  if (start.toDateString() === end.toDateString()) {
+    return start.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
+  }
+
+  // Same month and year
+  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+    return `${start.toLocaleDateString(undefined, { month: 'long' })} ${start.getDate()}-${end.getDate()}, ${start.getFullYear()}`;
+  }
+
+  // Same year
+  if (start.getFullYear() === end.getFullYear()) {
+    return `${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, ${start.getFullYear()}`;
+  }
+
+  // Different years
+  return `${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} - ${end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
+}
+
+function generateClusterTitle(metadata: ClusterMetadata, defaultTitle = 'Cluster'): string {
+  const { locationStats, startDate, endDate } = metadata;
+
+  let location = defaultTitle;
+
+  // Handle location part
+  if (locationStats?.cities && !isLocationScattered(locationStats.cities)) {
+    const topCities = getTopLocations(locationStats.cities);
+    if (topCities.length > 0) {
+      location = formatLocationList(topCities);
+    }
+  } else if (locationStats?.states && !isLocationScattered(locationStats.states)) {
+    const topStates = getTopLocations(locationStats.states);
+    if (topStates.length > 0) {
+      location = formatLocationList(topStates);
+    }
+  } else if (locationStats?.countries && !isLocationScattered(locationStats.countries)) {
+    const topCountries = getTopLocations(locationStats.countries);
+    if (topCountries.length > 0) {
+      location = formatLocationList(topCountries);
+    }
+  }
+
+  // Combine location with date range
+  const dateRange = formatDateRange(startDate, endDate);
+  return `${location} (${dateRange})`;
+}
+
 @Injectable()
 export class MemorylaneRepository implements IMemorylaneRepository {
   constructor(
@@ -40,20 +124,17 @@ export class MemorylaneRepository implements IMemorylaneRepository {
     let title = 'Cluster';
 
     if (result && result.length > 0) {
-      const { cluster_location_stats: locationStats } = result[0];
-      if (locationStats?.cities) {
-        // Sort cities by percentage and get top 3
-        const topCities = Object.entries(locationStats.cities)
-          .sort(([, a], [, b]) => (b as number) - (a as number))
-          .slice(0, 3)
-          .map(([city]) => city);
+    const {
+      cluster_location_stats: locationStats,
+      cluster_start: startDate,
+      cluster_end: endDate
+    } = result[0];
 
-        // Join cities with proper grammar
-        title =
-          topCities.length > 1
-            ? `${topCities.slice(0, -1).join(', ')} and ${topCities.slice(-1)}`
-            : topCities[0] || 'Cluster';
-      }
+    title = generateClusterTitle({
+      locationStats,
+      startDate: new Date(startDate),
+      endDate: new Date(endDate)
+    }, title);
     }
 
     return { title, assetIds };
@@ -67,7 +148,7 @@ export class MemorylaneRepository implements IMemorylaneRepository {
 
     if (result && result.length > 0) {
       const { person_name: personName } = result[0];
-      title = personName ? `Spotlight on ${personName}` : 'Spotlight';
+      title = personName ? `Spotlight on ${personName}` : title;
     }
 
     return { title, assetIds };
@@ -86,6 +167,8 @@ const clusterQuery = `
       one random draw. 
 --------------------------------------------------------------------------- */
          cluster_data AS (SELECT c.final_cluster_id                     AS cluster_id,
+                                 c.cluster_start                        AS cluster_start,
+                                 c.cluster_end                          AS cluster_end,
                                  sqrt(c.cluster_cardinality_score_ge_0) AS weight
                           FROM asset_dbscan_clusters c
                                    CROSS JOIN CONSTANTS co
@@ -96,6 +179,8 @@ const clusterQuery = `
          cluster_w AS (
              /* Compute total_weight, plus a running sum (right_cumulative). */
              SELECT cd.cluster_id,
+                    cd.cluster_start,
+                    cd.cluster_end,
                     cd.weight,
                     SUM(cd.weight) OVER ()                       AS total_weight,
                     SUM(cd.weight) OVER (ORDER BY cd.cluster_id) AS right_cumulative
@@ -103,6 +188,8 @@ const clusterQuery = `
          cluster_w2 AS (
              /* Define left_cumulative using LAG(...) */
              SELECT cw.cluster_id,
+                    cw.cluster_start,
+                    cw.cluster_end,
                     cw.weight,
                     cw.total_weight,
                     cw.right_cumulative,
@@ -129,7 +216,10 @@ const clusterQuery = `
                 Pick the single cluster whose interval covers r * total_weight.
                 This always returns exactly one row.
              */
-             SELECT cw2.cluster_id
+             SELECT
+                 cw2.cluster_id,
+                 cw2.cluster_start,
+                 cw2.cluster_end
              FROM cluster_w2 cw2
                       CROSS JOIN cluster_rng cr
              WHERE (cr.r * cw2.total_weight) >= cw2.left_cumulative
@@ -252,10 +342,13 @@ const clusterQuery = `
    Final selection: up to 12 photos, sorted by time
 --------------------------------------------------------------------------- */
     SELECT fc.id,
-           lc.location_distribution as cluster_location_stats
+       lc.location_distribution as cluster_location_stats,
+       cc.cluster_start,
+       cc.cluster_end
     FROM filtered_candidates fc
              CROSS JOIN CONSTANTS c
              CROSS JOIN location_counts lc
+             CROSS JOIN chosen_cluster cc
     WHERE fc.row_number <= c.RESULT_LIMIT
     ORDER BY fc.ts
 `;
