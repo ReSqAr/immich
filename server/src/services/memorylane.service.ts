@@ -15,8 +15,9 @@ const SALT = 'hunter2!';
 
 const MEMORYLANE_WEIGHTS = [
   { item: MemorylaneType.RECENT_HIGHLIGHTS, weight: 0.1 },
-  { item: MemorylaneType.CLUSTER, weight: 0.7 },
-  { item: MemorylaneType.SIMILARITY, weight: 0.2 },
+  { item: MemorylaneType.CLUSTER, weight: 0.6 },
+  { item: MemorylaneType.SIMILARITY, weight: 0.15 },
+  { item: MemorylaneType.PERSON, weight: 0.15 },
 ];
 
 const CLIP_QUERIES = {
@@ -328,6 +329,10 @@ export class MemorylaneService extends BaseService {
       case MemorylaneType.CLUSTER: {
         const { assetIds, title } = await this.memorylaneRepository.cluster(userIds, seed, effectiveLimit);
         return await this.loadAssetIds(assetIds, id, MemorylaneType.CLUSTER, title, seed);
+      }
+      case MemorylaneType.PERSON: {
+        const { assetIds, title } = await this.memorylaneRepository.person(userIds, seed, effectiveLimit);
+        return await this.loadAssetIds(assetIds, id, MemorylaneType.PERSON, title, seed);
       }
       case MemorylaneType.RECENT_HIGHLIGHTS: {
         const { assetIds, title } = await this.memorylaneRepository.recentHighlight(userIds, seed, effectiveLimit);

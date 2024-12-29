@@ -6,5 +6,6 @@ export const newMemorylaneRepositoryMock = (): Mocked<IMemorylaneRepository> => 
     refresh: vitest.fn(),
     cluster: vitest.fn(),
     recentHighlight: vitest.fn(),
+    person: vitest.fn(),
   };
 };

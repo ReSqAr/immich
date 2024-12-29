@@ -67,6 +67,7 @@ export enum MemorylaneType {
   RECENT_HIGHLIGHTS = 'recent_highlights',
   CLUSTER = 'cluster',
   SIMILARITY = 'similarity',
+  PERSON = 'person',
 }
 
 export enum Permission {

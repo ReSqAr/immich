@@ -58,6 +58,20 @@ export class MemorylaneRepository implements IMemorylaneRepository {
 
     return { title, assetIds };
   }
+
+  async person(userIds: string[], seed: number, limit: number): Promise<Memorylane> {
+    const result = await this.assetRepository.query(personQuery, [seed, limit, userIds]);
+    const assetIds: string[] = result.map(({ id }: { id: string }) => id);
+
+    let title = 'Spotlight';
+
+    if (result && result.length > 0) {
+      const { person_name: personName } = result[0];
+      title = personName ? `Spotlight on ${personName}` : 'Spotlight';
+    }
+
+    return { title, assetIds };
+  }
 }
 
 const clusterQuery = `
@@ -330,4 +344,165 @@ const recentHighlightsQuery = `
              CROSS JOIN CONSTANTS c
     WHERE row_number <= c.RESULT_LIMIT
     ORDER BY draw_number
+`;
+
+const personQuery = `
+WITH CONSTANTS AS (
+    SELECT $1::bigint AS LCG_SEED,
+           $2::int AS RESULT_LIMIT,
+           $3::uuid[] AS USER_IDS,
+           INTERVAL '15 minutes' AS MIN_TIME_BETWEEN_PHOTOS,
+           2 * $2::int AS MIN_PICTURES_PER_PERSON
+),
+
+/* ---------------------------------------------------------------------------
+   1) Get all persons with their photo count (normalized score >= 1)
+   and randomly select one person using weighted selection
+--------------------------------------------------------------------------- */
+person_data AS (
+    SELECT
+        p.id AS person_id,
+        p.name AS person_name,
+        COUNT(DISTINCT af.id) as photo_count,
+        SQRT(COUNT(DISTINCT af.id)::float) as weight
+    FROM person p
+    JOIN asset_faces af ON p.id = af."personId"
+    JOIN asset_analysis aa ON af."assetId" = aa.id
+    CROSS JOIN CONSTANTS co
+    WHERE p."ownerId" = ANY(co.USER_IDS)
+    AND aa.normalized_quality_score >= 1
+    GROUP BY p.id, p.name, co.MIN_PICTURES_PER_PERSON
+    HAVING COUNT(DISTINCT af.id) > co.MIN_PICTURES_PER_PERSON
+),
+person_w AS (
+    SELECT
+        pd.person_id,
+        pd.person_name,
+        pd.weight,
+        SUM(pd.weight) OVER () AS total_weight,
+        SUM(pd.weight) OVER (ORDER BY pd.person_id) AS right_cumulative
+    FROM person_data pd
+),
+person_w2 AS (
+    SELECT
+        pw.person_id,
+        pw.person_name,
+        pw.weight,
+        pw.total_weight,
+        pw.right_cumulative,
+        COALESCE(LAG(pw.right_cumulative) OVER (ORDER BY pw.person_id), 0) AS left_cumulative
+    FROM person_w pw
+),
+person_rng AS (
+    WITH RECURSIVE seed_seq(i, seed) AS (
+        SELECT 1, (c.LCG_SEED + 2147483648::bigint) % 2147483648
+        FROM CONSTANTS c
+        UNION ALL
+        SELECT i + 1, (1103515245 * seed + 12345) % 2147483648
+        FROM seed_seq
+        CROSS JOIN CONSTANTS c
+        WHERE i < 1
+    )
+    SELECT seed_seq.seed::float / 2147483648 AS r
+    FROM seed_seq
+    WHERE i = 1
+),
+chosen_person AS (
+    SELECT
+        pw2.person_id,
+        pw2.person_name
+    FROM person_w2 pw2
+    CROSS JOIN person_rng pr
+    WHERE (pr.r * pw2.total_weight) >= pw2.left_cumulative
+    AND (pr.r * pw2.total_weight) < pw2.right_cumulative
+    LIMIT 1
+),
+
+/* ---------------------------------------------------------------------------
+   2) Get all photos of the chosen person with normalized score >= 1
+   and select random photos with quality score weights
+--------------------------------------------------------------------------- */
+data AS (
+    SELECT
+        aa.id,
+        aa.ts,
+        (1 + COALESCE(aa.quality_score, 0)) AS weight
+    FROM asset_analysis aa
+    JOIN asset_faces af ON aa.id = af."assetId"
+    JOIN chosen_person cp ON af."personId" = cp.person_id
+    WHERE aa.normalized_quality_score >= 1
+),
+w AS (
+    SELECT
+        d.id,
+        d.ts,
+        d.weight,
+        SUM(d.weight) OVER () AS total_weight,
+        SUM(d.weight) OVER (ORDER BY d.ts) AS right_cumulative
+    FROM data d
+),
+w2 AS (
+    SELECT
+        w.id,
+        w.ts,
+        w.weight,
+        w.total_weight,
+        w.right_cumulative,
+        COALESCE(LAG(w.right_cumulative) OVER (ORDER BY w.ts), 0) AS left_cumulative
+    FROM w
+),
+rng AS (
+    WITH RECURSIVE seed_seq(i, seed) AS (
+        SELECT 1, (c.LCG_SEED + 2147483648::bigint) % 2147483648
+        FROM CONSTANTS c
+        UNION ALL
+        SELECT i + 1, (1103515245 * seed + 12345) % 2147483648
+        FROM seed_seq
+        CROSS JOIN CONSTANTS c
+        WHERE i < 2 * c.RESULT_LIMIT
+    )
+    SELECT
+        i AS draw_number,
+        seed_seq.seed::float / 2147483648 AS r
+    FROM seed_seq
+),
+candidates AS (
+    SELECT
+        rng.draw_number,
+        w2.id,
+        w2.ts
+    FROM rng
+    JOIN w2 ON (rng.r * w2.total_weight) >= w2.left_cumulative
+    AND (rng.r * w2.total_weight) < w2.right_cumulative
+    ORDER BY rng.draw_number
+),
+filtered_candidates AS (
+    SELECT
+        a.draw_number,
+        ROW_NUMBER() OVER (ORDER BY a.draw_number) AS row_number,
+        a.id,
+        a.ts
+    FROM candidates a
+    CROSS JOIN CONSTANTS c
+    WHERE NOT EXISTS (
+        SELECT 1
+        FROM candidates b
+        WHERE b.draw_number < a.draw_number
+        AND a.ts - b.ts < c.MIN_TIME_BETWEEN_PHOTOS
+        AND b.ts - a.ts < c.MIN_TIME_BETWEEN_PHOTOS
+    )
+    ORDER BY draw_number
+)
+
+/* ---------------------------------------------------------------------------
+   Final selection: Return chosen photos and person name
+--------------------------------------------------------------------------- */
+SELECT
+    fc.id,
+    cp.person_name
+FROM filtered_candidates fc
+CROSS JOIN CONSTANTS c
+CROSS JOIN chosen_person cp
+WHERE fc.row_number <= c.RESULT_LIMIT
+ORDER BY fc.ts;
 `;

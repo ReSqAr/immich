@@ -10025,7 +10025,8 @@
         "enum": [
           "recent_highlights",
           "cluster",
-          "similarity"
+          "similarity",
+          "person"
         ],
         "type": "string"
       },
