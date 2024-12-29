@@ -38,26 +38,26 @@ export class QualityAssessmentService extends BaseService {
     }
 
     await this.databaseRepository.withLock(DatabaseLock.IQAScore, async () => {
-      const configChanged =
-        oldConfig &&
-        (oldConfig.machineLearning.iqa.modelName !== newConfig.machineLearning.iqa.modelName ||
-          oldConfig.machineLearning.urls !== newConfig.machineLearning.urls);
+      const modelChange =
+        oldConfig && oldConfig.machineLearning.iqa.modelName !== newConfig.machineLearning.iqa.modelName;
 
-      if (!configChanged) {
+      if (!modelChange) {
         return;
       }
 
-      const { isPaused } = await this.jobRepository.getQueueStatus(QueueName.BACKGROUND_TASK);
+      const { isPaused } = await this.jobRepository.getQueueStatus(QueueName.IQA_SCORE);
       if (!isPaused) {
-        await this.jobRepository.pause(QueueName.BACKGROUND_TASK);
+        await this.jobRepository.pause(QueueName.IQA_SCORE);
       }
-      await this.jobRepository.waitForQueueCompletion(QueueName.BACKGROUND_TASK);
+      await this.jobRepository.waitForQueueCompletion(QueueName.IQA_SCORE);
 
-      this.logger.log('Quality check configuration changed, requeueing all assets for quality scoring');
+      this.logger.log(
+        `Quality check configuration changed (${oldConfig.machineLearning.iqa.modelName} ->  ${newConfig.machineLearning.iqa.modelName}), requeueing all assets for quality scoring`,
+      );
       await this.qualityAssessmentRepository.clearAllIQAScores();
 
       if (!isPaused) {
-        await this.jobRepository.resume(QueueName.BACKGROUND_TASK);
+        await this.jobRepository.resume(QueueName.IQA_SCORE);
       }
     });
   }
