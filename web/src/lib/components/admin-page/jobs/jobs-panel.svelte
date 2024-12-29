@@ -104,7 +104,7 @@
       subtitle: $t('admin.quality_job_description'),
       allText: $t('all'),
       missingText: $t('missing'),
-      disabled: !$featureFlags.quality,
+      disabled: !$featureFlags.qualityAssessment,
     },
     [JobName.DuplicateDetection]: {
       icon: mdiContentDuplicate,
