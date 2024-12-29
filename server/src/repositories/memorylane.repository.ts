@@ -22,24 +22,31 @@ type ClusterMetadata = {
   endDate: Date;
 };
 
-function isLocationScattered(locations: Record<string, number>, threshold = 0.2): boolean {
-  if (!locations || Object.keys(locations).length === 0) return true;
+function isLocationScattered(locations: Record<string, number>, threshold = 0.05, topN = 2): boolean {
+  if (!locations || Object.keys(locations).length === 0) {
+    return true;
+  }
 
-  const topFrequency = Math.max(...Object.values(locations));
-  return topFrequency < threshold;
+  const frequencies = Object.values(locations).sort((a, b) => b - a);
+  const remainder = frequencies.slice(topN).reduce((sum, freq) => sum + freq, 0);
+  return remainder > threshold;
 }
 
-function getTopLocations(locations: Record<string, number>, maxCount = 3): string[] {
+function getTopLocations(locations: Record<string, number>, threshold = 0.05, topN = 2): string[] {
   return Object.entries(locations)
+    .filter(([location, freq]) => location && location.trim() && freq >= threshold)
     .sort(([, freqA], [, freqB]) => freqB - freqA)
-    .slice(0, maxCount)
-    .map(([location]) => location)
-    .filter(location => location && location.trim());
+    .slice(0, topN)
+    .map(([location]) => location);
 }
 
 function formatLocationList(locations: string[]): string {
-  if (locations.length === 0) return '';
-  if (locations.length === 1) return locations[0];
+  if (locations.length === 0) {
+    return '';
+  }
+  if (locations.length === 1) {
+    return locations[0];
+  }
   return `${locations.slice(0, -1).join(', ')} and ${locations.slice(-1)}`;
 }
 
@@ -66,10 +73,10 @@ function formatDateRange(startDate: Date, endDate: Date): string {
   return `${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} - ${end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
 }
 
-function generateClusterTitle(metadata: ClusterMetadata, defaultTitle = 'Cluster'): string {
+function generateClusterTitle(metadata: ClusterMetadata): string {
   const { locationStats, startDate, endDate } = metadata;
 
-  let location = defaultTitle;
+  let location = '';
 
   // Handle location part
   if (locationStats?.cities && !isLocationScattered(locationStats.cities)) {
@@ -91,7 +98,7 @@ function generateClusterTitle(metadata: ClusterMetadata, defaultTitle = 'Cluster
 
   // Combine location with date range
   const dateRange = formatDateRange(startDate, endDate);
-  return `${location} (${dateRange})`;
+  return location == '' ? dateRange : `${location} (${dateRange})`;
 }
 
 @Injectable()
@@ -124,17 +131,13 @@ export class MemorylaneRepository implements IMemorylaneRepository {
     let title = 'Cluster';
 
     if (result && result.length > 0) {
-    const {
-      cluster_location_stats: locationStats,
-      cluster_start: startDate,
-      cluster_end: endDate
-    } = result[0];
+      const { cluster_location_stats: locationStats, cluster_start: startDate, cluster_end: endDate } = result[0];
 
-    title = generateClusterTitle({
-      locationStats,
-      startDate: new Date(startDate),
-      endDate: new Date(endDate)
-    }, title);
+      title = generateClusterTitle({
+        locationStats,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+      });
     }
 
     return { title, assetIds };
@@ -313,30 +316,68 @@ const clusterQuery = `
              FROM filtered_candidates ad -- asset_analysis ad
                       --JOIN chosen_cluster cc ON ad.cluster_id = cc.cluster_id
                       LEFT JOIN exif e ON ad.id = e."assetId"),
-         location_counts AS (WITH total_stats AS (SELECT COUNT(*) as total_count
-                                                  FROM location_stats)
-                             SELECT total_stats.total_count AS total_assets,
-                                    jsonb_build_object(
-                                            'cities',
-                                            (SELECT jsonb_object_agg(city, (count::decimal / total_stats.total_count))
-                                             FROM (SELECT city, COUNT(*) as count
-                                                   FROM location_stats
-                                                   WHERE city IS NOT NULL
-                                                   GROUP BY city) cities),
-                                            'states',
-                                            (SELECT jsonb_object_agg(state, (count::decimal / total_stats.total_count))
-                                             FROM (SELECT state, COUNT(*) as count
-                                                   FROM location_stats
-                                                   WHERE state IS NOT NULL
-                                                   GROUP BY state) states),
-                                            'countries', (SELECT jsonb_object_agg(country,
-                                                                                  (count::decimal / total_stats.total_count))
-                                                          FROM (SELECT country, COUNT(*) as count
-                                                                FROM location_stats
-                                                                WHERE country IS NOT NULL
-                                                                GROUP BY country) countries)
-                                    )                       AS location_distribution
-                             FROM total_stats)
+         location_counts AS (
+            WITH total_stats AS (
+                SELECT COUNT(*) as total_count
+                FROM location_stats
+            ),
+            city_total AS (
+                SELECT COUNT(*) as total_count
+                FROM location_stats
+                WHERE city IS NOT NULL
+            ),
+            city_stats AS (
+                SELECT 
+                    city,
+                    COUNT(*) as count
+                FROM location_stats
+                WHERE city IS NOT NULL
+                GROUP BY city
+            ),
+            state_total AS (
+                SELECT COUNT(*) as total_count
+                FROM location_stats
+                WHERE state IS NOT NULL
+            ),
+            state_stats AS (
+                SELECT 
+                    state,
+                    COUNT(*) as count
+                FROM location_stats
+                WHERE state IS NOT NULL
+                GROUP BY state
+            ),
+            country_total AS (
+                SELECT COUNT(*) as total_count
+                FROM location_stats
+                WHERE country IS NOT NULL
+            ),
+            country_stats AS (
+                SELECT 
+                    country,
+                    COUNT(*) as count
+                FROM location_stats
+                WHERE country IS NOT NULL
+                GROUP BY country
+            )
+            SELECT 
+                total_stats.total_count AS total_assets,
+                jsonb_build_object(
+                    'cities', (
+                        SELECT jsonb_object_agg(city, (count::decimal / city_total.total_count))
+                        FROM city_stats, city_total
+                    ),
+                    'states', (
+                        SELECT jsonb_object_agg(state, (count::decimal / state_total.total_count))
+                        FROM state_stats, state_total
+                    ),
+                    'countries', (
+                        SELECT jsonb_object_agg(country, (count::decimal / country_total.total_count))
+                        FROM country_stats, country_total
+                    )
+                ) AS location_distribution
+            FROM total_stats
+        )
 
 /* ---------------------------------------------------------------------------
    Final selection: up to 12 photos, sorted by time
