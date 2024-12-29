@@ -33,6 +33,6 @@ const scoreDistributionQuery = `
     SELECT AVG(qa.score) as mean,
            STDDEV(qa.score) as stddev
     FROM public.assets a
-             JOIN public.quality_assessment qa on a.id = qa."assetId"
+             JOIN public.quality_assessments qa on a.id = qa."assetId"
     WHERE a."ownerId" = ANY($1::uuid[])
 `;

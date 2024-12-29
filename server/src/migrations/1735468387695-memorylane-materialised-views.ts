@@ -236,7 +236,7 @@ WITH cluster_data AS (
         ad.ts,
         q.score
     FROM asset_dbscan ad
-    LEFT JOIN quality_assessment q ON ad.id = q."assetId"
+    LEFT JOIN quality_assessments q ON ad.id = q."assetId"
 ),
 normalized_scores AS (
     SELECT
@@ -342,7 +342,7 @@ WITH final as (
     FROM asset_dbscan lp
     LEFT JOIN asset_dbscan_clusters cs ON lp.final_cluster_id = cs.final_cluster_id
     LEFT JOIN exif e ON lp.id = e."assetId"
-    LEFT JOIN quality_assessment q ON lp.id = q."assetId"
+    LEFT JOIN quality_assessments q ON lp.id = q."assetId"
 )
 SELECT * FROM final ORDER BY "ownerId", ts, id;  -- Modified ordering
 `
