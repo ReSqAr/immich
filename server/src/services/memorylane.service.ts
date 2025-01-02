@@ -12,6 +12,7 @@ import { isSmartSearchEnabled } from 'src/utils/misc';
 
 const LIMIT = 12;
 const SALT = 'hunter2!';
+const N_ROUNDS = 100;
 
 const MEMORYLANE_WEIGHTS = [
   { item: MemorylaneType.RECENT_HIGHLIGHTS, weight: 0.1 },
@@ -155,6 +156,13 @@ function lcg(seed: number): number {
   const normalizedSeed = (seed + LCG_M) % LCG_M;
   // Use same constants as SQL implementation
   return (1_103_515_245 * normalizedSeed + 12_345) % LCG_M;
+}
+
+function ilcg(seed: number, n: number): number {
+  for (let i = 0; i < n; i++) {
+    seed = lcg(seed);
+  }
+  return seed;
 }
 
 function lcgToFloat(seed: number): number {
@@ -318,7 +326,7 @@ export class MemorylaneService extends BaseService {
     //??
     //await this.requireAccess({auth, permission: Permission.MEMORY_READ, ids: [id]});
 
-    const seed = await stringToSignedSHA32(id, SALT);
+    const seed = ilcg(await stringToSignedSHA32(id, SALT), N_ROUNDS);
 
     const effectiveLimit = limit || LIMIT;
     const effectiveMemorylane = memorylane || randomMemorylaneType(seed);

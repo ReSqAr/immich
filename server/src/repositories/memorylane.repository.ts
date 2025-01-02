@@ -89,8 +89,8 @@ function generateClusterTitle(metadata: ClusterMetadata): string {
     if (topStates.length > 0) {
       location = formatLocationList(topStates);
     }
-  } else if (locationStats?.countries && !isLocationScattered(locationStats.countries)) {
-    const topCountries = getTopLocations(locationStats.countries);
+  } else if (locationStats?.countries && !isLocationScattered(locationStats.countries, 0.05, 10)) {
+    const topCountries = getTopLocations(locationStats.countries, 0.05, 10);
     if (topCountries.length > 0) {
       location = formatLocationList(topCountries);
     }
