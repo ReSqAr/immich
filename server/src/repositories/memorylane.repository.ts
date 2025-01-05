@@ -111,8 +111,6 @@ export class MemorylaneRepository implements IMemorylaneRepository {
   }
 
   async refresh(): Promise<void> {
-    await this.assetRepository.query('REFRESH MATERIALIZED VIEW asset_dbscan');
-    await this.assetRepository.query('REFRESH MATERIALIZED VIEW asset_dbscan_clusters');
     await this.assetRepository.query('REFRESH MATERIALIZED VIEW asset_analysis');
   }
 
@@ -169,7 +167,7 @@ const clusterQuery = `
       We do this by giving each cluster a weight = 1, summing them, then doing
       one random draw. 
 --------------------------------------------------------------------------- */
-         cluster_data AS (SELECT c.final_cluster_id                     AS cluster_id,
+         cluster_data AS (SELECT c.cluster_id                           AS cluster_id,
                                  c.cluster_start                        AS cluster_start,
                                  c.cluster_end                          AS cluster_end,
                                  sqrt(c.cluster_cardinality_score_ge_0) AS weight
