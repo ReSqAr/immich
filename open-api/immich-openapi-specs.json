@@ -10002,9 +10002,6 @@
           "id": {
             "type": "string"
           },
-          "parameter": {
-            "type": "number"
-          },
           "title": {
             "type": "string"
           },
@@ -10019,7 +10016,6 @@
         "required": [
           "assets",
           "id",
-          "parameter",
           "title",
           "type"
         ],

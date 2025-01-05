@@ -11,7 +11,6 @@ import {getMyPartnerIds} from 'src/utils/asset.util';
 import {isSmartSearchEnabled} from 'src/utils/misc';
 
 const LIMIT = 12;
-const N_ROUNDS = 100;
 const BINS = 1367;
 
 
@@ -147,27 +146,16 @@ async function stringToSignedSHA32(str: string): Promise<number> {
   const buffer = new TextEncoder().encode(str);
   const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
   const view = new DataView(hashBuffer);
-  return view.getInt32(0);
+
+  return (
+    (view.getUint32(0) % 2**31) ^
+    (view.getUint32(4) % 2**31) ^
+    (view.getUint32(8) % 2**31) ^
+    (view.getUint32(12) % 2**31)
+  );
 }
 
 const MIN_TIME_BETWEEN_PHOTOS = 15 * 60 * 1000; // 15 minutes in milliseconds
-
-// https://en.wikipedia.org/wiki/Lehmer_random_number_generator#Parameters_in_common_use
-const LCG_M = 2_147_483_647n; // 2^31 - 1
-const a = 48_271n;
-
-function lcg(seed: number): number {
-  const normalizedSeed = (BigInt(seed) + LCG_M) % LCG_M;
-  const result = (a * normalizedSeed) % LCG_M;
-  return Number(result);
-}
-
-function ilcg(seed: number, n: number): number {
-  for (let i = 0; i < n; i++) {
-    seed = lcg(seed);
-  }
-  return seed;
-}
 
 interface WeightedItem<T> {
   item: T;
@@ -222,9 +210,26 @@ function randomMemorylaneType(seed: number) {
 export function selectRandomQuery(seed: number): string {
   const weightedQueries = computeCumulativeWeights(FLATTENED_QUERIES, (item) => item.weight);
 
-  const selected = findItemForRandom(weightedQueries, lcg(seed));
+  const selected = findItemForRandom(weightedQueries, seed);
 
   return selected?.query ?? 'beautiful photo';
+}
+
+function getRandom(seed: number, i: number, n: number) {
+// Combine all seed components and index using XOR, converted to BigInt
+  const combined: bigint = BigInt(seed) ^ BigInt(i);
+
+  // Constant for mixing (73244475 as BigInt)
+  const CONST: bigint = 73244475n;
+
+  // Multiply and ensure 32-bit unsigned integer by applying modulo 2^32
+  const MIXED_MOD: bigint = (combined * CONST) % 4294967296n; // 2^32
+
+  // Final modulo to get within [0, n)
+  const result: bigint = MIXED_MOD % BigInt(n);
+
+  // Convert BigInt result back to number for return
+  return Number(result);
 }
 
 export function selectRandomPhotos(assets: AssetEntity[], seed: number, limit: number): AssetEntity[] {
@@ -232,15 +237,14 @@ export function selectRandomPhotos(assets: AssetEntity[], seed: number, limit: n
   const weightedAssets = computeCumulativeWeights(assets, () => 1);
 
   const selected: AssetEntity[] = [];
-  let currentSeed = seed;
 
   // Generate 2 * limit candidates to ensure we have enough after filtering
   for (let i = 0; i < limit * 4 && selected.length < limit; i++) {
     // Generate next random number
-    currentSeed = lcg(currentSeed);
+    const random = getRandom(seed, i, 2**31);
 
     // Select a candidate
-    const candidate = findItemForRandom(weightedAssets, currentSeed);
+    const candidate = findItemForRandom(weightedAssets, random);
     if (!candidate) {
       continue;
     }
@@ -262,7 +266,7 @@ export function selectRandomPhotos(assets: AssetEntity[], seed: number, limit: n
 
 @Injectable()
 export class MemorylaneService extends BaseService {
-  private async loadAssetIds(assetIds: string[], id: string, memorylane: MemorylaneType, title: string, seed: number) {
+  private async loadAssetIds(assetIds: string[], id: string, memorylane: MemorylaneType, title: string) {
     const assets = await this.assetRepository.getByIds(assetIds, { exifInfo: true, qualityAssessment: true });
 
     // Create a map of assets by their IDs for efficient lookup
@@ -278,7 +282,6 @@ export class MemorylaneService extends BaseService {
       id,
       type: memorylane,
       title,
-      parameter: seed,
       assets: orderedAssets,
     };
   }
@@ -329,8 +332,7 @@ export class MemorylaneService extends BaseService {
     //??
     //await this.requireAccess({auth, permission: Permission.MEMORY_READ, ids: [id]});
 
-    const initialSeed = ilcg(await stringToSignedSHA32(id), N_ROUNDS);
-    const seed = initialSeed ^ (initialSeed >> 16);
+    const seed = await stringToSignedSHA32(id);
 
     const effectiveLimit = limit || LIMIT;
     const effectiveMemorylane = memorylane || randomMemorylaneType(seed);
@@ -340,19 +342,19 @@ export class MemorylaneService extends BaseService {
     switch (effectiveMemorylane) {
       case MemorylaneType.CLUSTER: {
         const { assetIds, title } = await this.memorylaneRepository.cluster(userIds, seed, effectiveLimit);
-        return await this.loadAssetIds(assetIds, id, MemorylaneType.CLUSTER, title, seed);
+        return await this.loadAssetIds(assetIds, id, MemorylaneType.CLUSTER, title);
       }
       case MemorylaneType.PERSON: {
         const { assetIds, title } = await this.memorylaneRepository.person(userIds, seed, effectiveLimit);
-        return await this.loadAssetIds(assetIds, id, MemorylaneType.PERSON, title, seed);
+        return await this.loadAssetIds(assetIds, id, MemorylaneType.PERSON, title);
       }
       case MemorylaneType.RECENT_HIGHLIGHTS: {
         const { assetIds, title } = await this.memorylaneRepository.recentHighlight(userIds, seed, effectiveLimit);
-        return await this.loadAssetIds(assetIds, id, MemorylaneType.RECENT_HIGHLIGHTS, title, seed);
+        return await this.loadAssetIds(assetIds, id, MemorylaneType.RECENT_HIGHLIGHTS, title);
       }
       case MemorylaneType.YEAR: {
         const { assetIds, title } = await this.memorylaneRepository.year(userIds, seed, effectiveLimit);
-        return await this.loadAssetIds(assetIds, id, MemorylaneType.YEAR, title, seed);
+        return await this.loadAssetIds(assetIds, id, MemorylaneType.YEAR, title);
       }
       case MemorylaneType.SIMILARITY: {
         return await this.similarity(userIds, id, seed, effectiveLimit);

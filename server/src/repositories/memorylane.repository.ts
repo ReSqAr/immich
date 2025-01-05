@@ -175,7 +175,7 @@ const clusterQuery = `
     WITH
         CONSTANTS AS (
             SELECT
-                $1::BIGINT            AS LCG_SEED,
+                $1::BIGINT            AS SEED,
                 $2::INT               AS RESULT_LIMIT,
                 $3::uuid[]            AS USER_IDS,
                 INTERVAL '15 minutes' AS MIN_TIME_BETWEEN_PHOTOS
@@ -235,7 +235,7 @@ const clusterQuery = `
                 cw2.cluster_end
             FROM cluster_w2 cw2
                  CROSS JOIN CONSTANTS c
-            WHERE (c.LCG_SEED % ROUND(1367 * cw2.total_weight)::BIGINT) BETWEEN 1367 * cw2.left_cumulative AND 1367 * cw2.right_cumulative
+            WHERE (c.SEED % ROUND(1367 * cw2.total_weight)::BIGINT) BETWEEN 1367 * cw2.left_cumulative AND 1367 * cw2.right_cumulative
             LIMIT 1
         ),
 
@@ -278,28 +278,6 @@ const clusterQuery = `
                 COALESCE(LAG(w.right_cumulative) OVER (ORDER BY w.ts), 0) AS left_cumulative
             FROM w
         ),
-        rng AS (
-            /* Generate (2 * RESULT_LIMIT) random draws via the same LCG. */
-            WITH
-                RECURSIVE
-                seed_seq(i, seed) AS (
-                    SELECT
-                        1,
-                        (c.LCG_SEED + 2147483647::BIGINT) % 2147483647::BIGINT
-                    FROM CONSTANTS c
-                    UNION ALL
-                    SELECT
-                        i + 1,
-                        (48271::BIGINT * seed) % 2147483647::BIGINT
-                    FROM seed_seq
-                         CROSS JOIN CONSTANTS c
-                    WHERE i < 2 * c.RESULT_LIMIT
-                )
-            SELECT
-                i                                     AS draw_number,
-                seed_seq.seed # (seed_seq.seed >> 16) AS r
-            FROM seed_seq
-        ),
         candidates AS (
             /*
                For each random draw, find the photo whose [left_cumulative, right_cumulative)
@@ -307,13 +285,14 @@ const clusterQuery = `
                “first come, first served” below.
             */
             SELECT
-                rng.draw_number,
+                i as draw_number,
                 w2.id,
                 w2.ts
-            FROM rng
-                 JOIN w2
-                      ON rng.r % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
-            ORDER BY rng.draw_number
+            FROM w2
+                 CROSS JOIN CONSTANTS c
+                 JOIN generate_series(0, 2 * c.RESULT_LIMIT) i
+                      ON ((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
+            ORDER BY draw_number
         ),
         filtered_candidates AS (
             /*
@@ -445,7 +424,7 @@ const recentHighlightsQuery = `
         INTERVAL '3 months' AS LOOKBACK_WINDOW,
         INTERVAL '6 HOURS'  AS MIN_TIME_BETWEEN_HIGHLIGHTS,
         1.0                 AS MIN_QUALITY_SCORE,
-        $1::BIGINT          AS LCG_SEED,
+        $1::BIGINT          AS SEED,
         $2::INT             AS RESULT_LIMIT,
         $3::uuid[]          AS USER_IDS
     ),
@@ -487,39 +466,17 @@ const recentHighlightsQuery = `
         ) AS left_cumulative
       FROM w
     ),
-    rng AS (
-      /* 4) Generate 2 * RESULT_LIMIT draws via a recursive LCG seeded by SEED (32-bit int). */
-      WITH
-        RECURSIVE
-        seed_seq(i, seed) AS (
-          SELECT
-            1,
-            (c.LCG_SEED + 2147483647::BIGINT) % 2147483647::BIGINT
-          FROM CONSTANTS c
-          UNION ALL
-          SELECT
-            i + 1,
-            (48271::BIGINT * seed) % 2147483647::BIGINT
-          FROM seed_seq
-               CROSS JOIN CONSTANTS c
-          WHERE i < 2 * c.RESULT_LIMIT
-        )
-      SELECT
-        i             AS draw_number,
-        seed_seq.seed # (seed_seq.seed >> 16) AS r
-      FROM seed_seq
-    ),
     candidates AS (
       SELECT
-        rng.draw_number,
+        i AS draw_number,
         w2.id,
         w2.ts,
         w2.weight
-      FROM rng
-           JOIN w2
-        /* 5) Interval check: find row whose [left_cumulative, right_cumulative) contains r % total_weight. */
-                ON rng.r % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
-      ORDER BY rng.draw_number
+      FROM w2
+           CROSS JOIN CONSTANTS c
+           JOIN generate_series(0, 2 * c.RESULT_LIMIT) i
+                ON ((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
+      ORDER BY draw_number
     ),
     filtered_candidates AS (
       SELECT
@@ -553,7 +510,7 @@ const personQuery = `
     WITH
         CONSTANTS AS (
             SELECT
-                $1::BIGINT            AS LCG_SEED,
+                $1::BIGINT            AS SEED,
                 $2::INT               AS RESULT_LIMIT,
                 $3::uuid[]            AS USER_IDS,
                 INTERVAL '15 minutes' AS MIN_TIME_BETWEEN_PHOTOS,
@@ -605,7 +562,7 @@ const personQuery = `
                 pw2.person_name
             FROM person_w2 pw2
                  CROSS JOIN CONSTANTS c
-            WHERE c.LCG_SEED % ROUND(1367 * pw2.total_weight)::BIGINT BETWEEN 1367 * pw2.left_cumulative AND 1367 * pw2.right_cumulative
+            WHERE c.SEED % ROUND(1367 * pw2.total_weight)::BIGINT BETWEEN 1367 * pw2.left_cumulative AND 1367 * pw2.right_cumulative
             LIMIT 1
         ),
 
@@ -642,35 +599,16 @@ const personQuery = `
                 COALESCE(LAG(w.right_cumulative) OVER (ORDER BY w.ts), 0) AS left_cumulative
             FROM w
         ),
-        rng AS (
-            WITH
-                RECURSIVE
-                seed_seq(i, seed) AS (
-                    SELECT
-                        1,
-                        (c.LCG_SEED + 2147483647::BIGINT) % 2147483647::BIGINT
-                    FROM CONSTANTS c
-                    UNION ALL
-                    SELECT
-                        i + 1,
-                        (48271::BIGINT * seed) % 2147483647::BIGINT
-                    FROM seed_seq
-                         CROSS JOIN CONSTANTS c
-                    WHERE i < 2 * c.RESULT_LIMIT
-                )
-            SELECT
-                i                                     AS draw_number,
-                seed_seq.seed # (seed_seq.seed >> 16) AS r
-            FROM seed_seq
-        ),
         candidates AS (
             SELECT
-                rng.draw_number,
+                i AS draw_number,
                 w2.id,
                 w2.ts
-            FROM rng
-                 JOIN w2 ON rng.r % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
-            ORDER BY rng.draw_number
+            FROM w2
+                 CROSS JOIN CONSTANTS c
+                 JOIN generate_series(0, 2 * c.RESULT_LIMIT) i
+                      ON ((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
+            ORDER BY draw_number    
         ),
         filtered_candidates AS (
             SELECT
@@ -708,7 +646,7 @@ const yearQuery = `
   WITH
     CONSTANTS AS (
       SELECT
-        $1::BIGINT            AS LCG_SEED,
+        $1::BIGINT            AS SEED,
         $2::INT               AS RESULT_LIMIT,
         $3::uuid[]            AS USER_IDS,
         INTERVAL '15 minutes' AS MIN_TIME_BETWEEN_PHOTOS
@@ -761,7 +699,7 @@ const yearQuery = `
         cw2.year
       FROM year_w2 cw2
            CROSS JOIN CONSTANTS c
-      WHERE c.LCG_SEED % ROUND(1367 * cw2.total_weight)::BIGINT BETWEEN 1367 * cw2.left_cumulative AND 1367 * cw2.right_cumulative
+      WHERE c.SEED % ROUND(1367 * cw2.total_weight)::BIGINT BETWEEN 1367 * cw2.left_cumulative AND 1367 * cw2.right_cumulative
       LIMIT 1
     ),
 
@@ -804,28 +742,6 @@ const yearQuery = `
         COALESCE(LAG(w.right_cumulative) OVER (ORDER BY w.ts), 0) AS left_cumulative
       FROM w
     ),
-    rng AS (
-      /* Generate (2 * RESULT_LIMIT) random draws via the same LCG. */
-      WITH
-        RECURSIVE
-        seed_seq(i, seed) AS (
-          SELECT
-            1,
-            (c.LCG_SEED + 2147483647::BIGINT) % 2147483647::BIGINT
-          FROM CONSTANTS c
-          UNION ALL
-          SELECT
-            i + 1,
-            (48271::BIGINT * seed) % 2147483647::BIGINT
-          FROM seed_seq
-               CROSS JOIN CONSTANTS c
-          WHERE i < 2 * c.RESULT_LIMIT
-        )
-      SELECT
-        i             AS draw_number,
-        seed_seq.seed # (seed_seq.seed >> 16) AS r
-      FROM seed_seq
-    ),
     candidates AS (
       /*
          For each random draw, find the photo whose [left_cumulative, right_cumulative)
@@ -833,13 +749,14 @@ const yearQuery = `
          “first come, first served” below.
       */
       SELECT
-        rng.draw_number,
+        i AS draw_number,
         w2.id,
         w2.ts
-      FROM rng
-           JOIN w2
-                ON rng.r % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
-      ORDER BY rng.draw_number
+        FROM w2
+         CROSS JOIN CONSTANTS c
+         JOIN generate_series(0, 2 * c.RESULT_LIMIT) i
+              ON ((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
+        ORDER BY draw_number
     ),
     filtered_candidates AS (
       /*

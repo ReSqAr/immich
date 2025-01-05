@@ -27,6 +27,5 @@ export class MemorylaneResponseDto {
   @ApiProperty({ enumName: 'MemorylaneType', enum: MemorylaneType })
   type!: MemorylaneType;
   title!: string;
-  parameter!: number;
   assets!: AssetResponseDto[];
 }
