@@ -1,18 +1,19 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
-import { OnJob } from 'src/decorators';
-import { mapAsset } from 'src/dtos/asset-response.dto';
-import { AuthDto } from 'src/dtos/auth.dto';
-import { MemorylaneResponseDto } from 'src/dtos/memorylane.dto';
-import { AssetEntity } from 'src/entities/asset.entity';
-import { MemorylaneType } from 'src/enum';
-import { JobName, JobOf, JobStatus, QueueName } from 'src/interfaces/job.interface';
-import { BaseService } from 'src/services/base.service';
-import { getMyPartnerIds } from 'src/utils/asset.util';
-import { isSmartSearchEnabled } from 'src/utils/misc';
+import {BadRequestException, Injectable} from '@nestjs/common';
+import {OnJob} from 'src/decorators';
+import {mapAsset} from 'src/dtos/asset-response.dto';
+import {AuthDto} from 'src/dtos/auth.dto';
+import {MemorylaneResponseDto} from 'src/dtos/memorylane.dto';
+import {AssetEntity} from 'src/entities/asset.entity';
+import {MemorylaneType} from 'src/enum';
+import {JobName, JobOf, JobStatus, QueueName} from 'src/interfaces/job.interface';
+import {BaseService} from 'src/services/base.service';
+import {getMyPartnerIds} from 'src/utils/asset.util';
+import {isSmartSearchEnabled} from 'src/utils/misc';
 
 const LIMIT = 12;
-const SALT = 'hunter2!';
 const N_ROUNDS = 100;
+const BINS = 1367;
+
 
 const MEMORYLANE_WEIGHTS = [
   { item: MemorylaneType.RECENT_HIGHLIGHTS, weight: 0.1 },
@@ -142,21 +143,23 @@ const CLIP_QUERIES = {
 
 const FLATTENED_QUERIES = Object.values(CLIP_QUERIES).flat();
 
-async function stringToSignedSHA32(str: string, salt: string): Promise<number> {
-  const buffer = new TextEncoder().encode(salt + str);
+async function stringToSignedSHA32(str: string): Promise<number> {
+  const buffer = new TextEncoder().encode(str);
   const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
   const view = new DataView(hashBuffer);
   return view.getInt32(0);
 }
 
 const MIN_TIME_BETWEEN_PHOTOS = 15 * 60 * 1000; // 15 minutes in milliseconds
-const LCG_M = 2_147_483_648; // 2^31
+
+// https://en.wikipedia.org/wiki/Lehmer_random_number_generator#Parameters_in_common_use
+const LCG_M = 2_147_483_647n; // 2^31 - 1
+const a = 48_271n;
 
 function lcg(seed: number): number {
-  // Ensure seed is positive and within bounds
-  const normalizedSeed = (seed + LCG_M) % LCG_M;
-  // Use same constants as SQL implementation
-  return (1_103_515_245 * normalizedSeed + 12_345) % LCG_M;
+  const normalizedSeed = (BigInt(seed) + LCG_M) % LCG_M;
+  const result = (a * normalizedSeed) % LCG_M;
+  return Number(result);
 }
 
 function ilcg(seed: number, n: number): number {
@@ -164,10 +167,6 @@ function ilcg(seed: number, n: number): number {
     seed = lcg(seed);
   }
   return seed;
-}
-
-function lcgToFloat(seed: number): number {
-  return seed / LCG_M;
 }
 
 interface WeightedItem<T> {
@@ -192,13 +191,19 @@ function computeCumulativeWeights<T>(items: T[], getWeight: (item: T) => number)
   });
 }
 
+
 function findItemForRandom<T>(items: WeightedItem<T>[], random: number): T | undefined {
   const last = items.at(-1);
   if (last === undefined) {
     return undefined;
   }
-  const targetValue = random * last.rightCumulative;
-  return items.find((item) => item.leftCumulative <= targetValue && targetValue < item.rightCumulative)?.item;
+
+  const scaledTotal = Math.round(last.rightCumulative * BINS);
+  const targetValue = random % scaledTotal;
+
+  return items.find((item) =>
+    item.leftCumulative * BINS <= targetValue && targetValue < item.rightCumulative * BINS
+  )?.item;
 }
 
 function capitalizeWords(str: string): string {
@@ -211,15 +216,13 @@ function capitalizeWords(str: string): string {
 function randomMemorylaneType(seed: number) {
   const weightedTypes = computeCumulativeWeights(MEMORYLANE_WEIGHTS, (item) => item.weight);
 
-  const random = lcgToFloat(lcg(seed));
-  return findItemForRandom(weightedTypes, random)?.item || MemorylaneType.RECENT_HIGHLIGHTS;
+  return findItemForRandom(weightedTypes, seed)?.item || MemorylaneType.RECENT_HIGHLIGHTS;
 }
 
 export function selectRandomQuery(seed: number): string {
   const weightedQueries = computeCumulativeWeights(FLATTENED_QUERIES, (item) => item.weight);
 
-  const random = lcgToFloat(lcg(seed));
-  const selected = findItemForRandom(weightedQueries, random);
+  const selected = findItemForRandom(weightedQueries, lcg(seed));
 
   return selected?.query ?? 'beautiful photo';
 }
@@ -235,10 +238,9 @@ export function selectRandomPhotos(assets: AssetEntity[], seed: number, limit: n
   for (let i = 0; i < limit * 4 && selected.length < limit; i++) {
     // Generate next random number
     currentSeed = lcg(currentSeed);
-    const random = lcgToFloat(currentSeed);
 
     // Select a candidate
-    const candidate = findItemForRandom(weightedAssets, random);
+    const candidate = findItemForRandom(weightedAssets, currentSeed);
     if (!candidate) {
       continue;
     }
@@ -327,7 +329,8 @@ export class MemorylaneService extends BaseService {
     //??
     //await this.requireAccess({auth, permission: Permission.MEMORY_READ, ids: [id]});
 
-    const seed = ilcg(await stringToSignedSHA32(id, SALT), N_ROUNDS);
+    const initialSeed = ilcg(await stringToSignedSHA32(id), N_ROUNDS);
+    const seed = initialSeed ^ (initialSeed >> 16);
 
     const effectiveLimit = limit || LIMIT;
     const effectiveMemorylane = memorylane || randomMemorylaneType(seed);
