@@ -215,20 +215,14 @@ export function selectRandomQuery(seed: number): string {
   return selected?.query ?? 'beautiful photo';
 }
 
-function getRandom(seed: number, i: number, n: number) {
-// Combine all seed components and index using XOR, converted to BigInt
-  const combined: bigint = BigInt(seed) ^ BigInt(i);
-
-  // Constant for mixing (73244475 as BigInt)
+/*
+  This function is inspired by:
+    https://stackoverflow.com/questions/664014/what-integer-hash-function-are-good-that-accepts-an-integer-hash-key
+  In tests this is good enough. An LCG was visibly not great.
+ */
+function getRandom(seed: number, i: number) {
   const CONST: bigint = 73244475n;
-
-  // Multiply and ensure 32-bit unsigned integer by applying modulo 2^32
-  const MIXED_MOD: bigint = (combined * CONST) % 4294967296n; // 2^32
-
-  // Final modulo to get within [0, n)
-  const result: bigint = MIXED_MOD % BigInt(n);
-
-  // Convert BigInt result back to number for return
+  const result: bigint = (BigInt(seed ^ i) * CONST) % 4294967296n; // 2^32
   return Number(result);
 }
 
@@ -240,8 +234,7 @@ export function selectRandomPhotos(assets: AssetEntity[], seed: number, limit: n
 
   // Generate 2 * limit candidates to ensure we have enough after filtering
   for (let i = 0; i < limit * 4 && selected.length < limit; i++) {
-    // Generate next random number
-    const random = getRandom(seed, i, 2**31);
+    const random = getRandom(seed, i);
 
     // Select a candidate
     const candidate = findItemForRandom(weightedAssets, random);
