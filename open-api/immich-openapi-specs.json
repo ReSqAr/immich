@@ -10009,7 +10009,11 @@
             "type": "string"
           },
           "type": {
-            "$ref": "#/components/schemas/MemorylaneType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MemorylaneType"
+              }
+            ]
           }
         },
         "required": [
@@ -10026,7 +10030,8 @@
           "recent_highlights",
           "cluster",
           "similarity",
-          "person"
+          "person",
+          "year"
         ],
         "type": "string"
       },

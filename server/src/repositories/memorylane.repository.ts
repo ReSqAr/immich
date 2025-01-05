@@ -122,6 +122,21 @@ export class MemorylaneRepository implements IMemorylaneRepository {
     return { title, assetIds };
   }
 
+  async year(userIds: string[], seed: number, limit: number): Promise<Memorylane> {
+    const result = await this.assetRepository.query(yearQuery, [seed, limit, userIds]);
+    const assetIds: string[] = result.map(({ id }: { id: string }) => id);
+
+
+    let title = 'Spotlight';
+
+    if (result && result.length > 0) {
+      const { year } = result[0];
+      title = `Spotlight on ${year}`;
+    }
+
+    return { title, assetIds };
+  }
+
   async cluster(userIds: string[], seed: number, limit: number): Promise<Memorylane> {
     const result = await this.assetRepository.query(clusterQuery, [seed, limit, userIds]);
     const assetIds: string[] = result.map(({ id }: { id: string }) => id);
@@ -230,7 +245,7 @@ const clusterQuery = `
 /* ---------------------------------------------------------------------------
    2) From that chosen cluster, select random photos:
       - Only photos with quality >= 0
-      - Weight = 1 + quality_score
+      - Weight = 1 + normalized_quality_score
       - Enforce 15min min separation
       - Return up to 12 total
       - Sort final results by timestamp
@@ -239,7 +254,7 @@ const clusterQuery = `
              /* Pull assets in the chosen cluster and define the new weight. */
              SELECT ad.id,
                     ad.ts,
-                    (1 + COALESCE(ad.quality_score, 0)) AS weight
+                    (1 + COALESCE(ad.normalized_quality_score, 0)) AS weight
              FROM asset_analysis ad
                       JOIN chosen_cluster cc ON ad.cluster_id = cc.cluster_id
              WHERE ad.normalized_quality_score >= 0),
@@ -558,7 +573,7 @@ data AS (
     SELECT
         aa.id,
         aa.ts,
-        COALESCE(aa.quality_score, 1) AS weight
+        COALESCE(aa.normalized_quality_score, 1) AS weight
     FROM asset_analysis aa
     JOIN asset_faces af ON aa.id = af."assetId"
     JOIN chosen_person cp ON af."personId" = cp.person_id
@@ -637,4 +652,201 @@ CROSS JOIN CONSTANTS c
 CROSS JOIN chosen_person cp
 WHERE fc.row_number <= c.RESULT_LIMIT
 ORDER BY fc.ts;
+`;
+
+const yearQuery = `
+    WITH
+        CONSTANTS AS (
+            SELECT
+                $1::BIGINT            AS LCG_SEED,
+                $2::INT               AS RESULT_LIMIT,
+                $3::uuid[]            AS USER_IDS,
+                INTERVAL '15 minutes' AS MIN_TIME_BETWEEN_PHOTOS
+        ),
+
+/* ---------------------------------------------------------------------------
+   1) Randomly pick exactly ONE year.
+      We do this by giving each year a weight = sqrt # of good assets, summing them, then doing
+      one random draw. 
+--------------------------------------------------------------------------- */
+        year_data AS (
+            SELECT
+                EXTRACT(YEAR FROM ts) AS year,
+                SQRT(COUNT(*))        AS weight
+            FROM asset_analysis c
+                 CROSS JOIN CONSTANTS co
+            WHERE c.normalized_quality_score >= 1
+              AND c."ownerId" = ANY (co.USER_IDS)
+            GROUP BY year, co.RESULT_LIMIT
+            HAVING COUNT(*) > co.RESULT_LIMIT
+        ),
+        year_w AS (
+            /* Compute total_weight, plus a running sum (right_cumulative). */
+            SELECT
+                cd.year,
+                cd.weight,
+                SUM(cd.weight) OVER ()                 AS total_weight,
+                SUM(cd.weight) OVER (ORDER BY cd.year) AS right_cumulative
+            FROM year_data cd
+        ),
+        year_w2 AS (
+            /* Define left_cumulative using LAG(...) */
+            SELECT
+                cw.year,
+                cw.weight,
+                cw.total_weight,
+                cw.right_cumulative,
+                COALESCE(
+                                LAG(cw.right_cumulative) OVER (ORDER BY cw.year),
+                                0
+                ) AS left_cumulative
+            FROM year_w cw
+        ),
+        year_rng AS (
+            /* A single random draw via LCG, seeded by LCG_SEED. */
+            WITH
+                RECURSIVE
+                seed_seq(i, seed) AS (
+                    SELECT
+                        1,
+                        (c.LCG_SEED + 2147483648::BIGINT) % 2147483648
+                    FROM CONSTANTS c
+                    UNION ALL
+                    SELECT
+                        i + 1,
+                        (1103515245 * seed + 12345) % 2147483648
+                    FROM seed_seq
+                         CROSS JOIN CONSTANTS c
+                    WHERE i < 1
+                )
+            SELECT
+                seed_seq.seed::FLOAT / 2147483648 AS r
+            FROM seed_seq
+            WHERE i = 1
+        ),
+        chosen_year AS (
+            /*
+               Pick the single year whose interval covers r * total_weight.
+               This always returns exactly one row.
+            */
+            SELECT
+                cw2.year
+            FROM year_w2 cw2
+                 CROSS JOIN year_rng cr
+            WHERE (cr.r * cw2.total_weight) >= cw2.left_cumulative
+              AND (cr.r * cw2.total_weight) < cw2.right_cumulative
+            LIMIT 1
+        ),
+
+/* ---------------------------------------------------------------------------
+   2) From that chosen year, select random photos:
+      - Only photos with quality >= 0
+      - Weight = 1 + normalized_quality_score
+      - Enforce 15min min separation
+      - Return up to 12 total
+      - Sort final results by timestamp
+--------------------------------------------------------------------------- */
+        data AS (
+            /* Pull assets in the chosen year and define the new weight. */
+            SELECT
+                ad.id,
+                ad.ts,
+                (1 + COALESCE(ad.normalized_quality_score, 0)) AS weight
+            FROM asset_analysis ad
+                 JOIN chosen_year cc ON EXTRACT(YEAR FROM ad.ts) = cc.year
+            WHERE ad.normalized_quality_score >= 1
+        ),
+        w AS (
+            /* Compute total_weight across these photos, plus their running total. */
+            SELECT
+                d.id,
+                d.ts,
+                d.weight,
+                SUM(d.weight) OVER ()              AS total_weight,
+                SUM(d.weight) OVER (ORDER BY d.ts) AS right_cumulative
+            FROM data d
+        ),
+        w2 AS (
+            /* LAG(...) to define each row's [left_cumulative, right_cumulative). */
+            SELECT
+                w.id,
+                w.ts,
+                w.weight,
+                w.total_weight,
+                w.right_cumulative,
+                COALESCE(LAG(w.right_cumulative) OVER (ORDER BY w.ts), 0) AS left_cumulative
+            FROM w
+        ),
+        rng AS (
+            /* Generate (2 * RESULT_LIMIT) random draws via the same LCG. */
+            WITH
+                RECURSIVE
+                seed_seq(i, seed) AS (
+                    SELECT
+                        1,
+                        (c.LCG_SEED + 2147483648::BIGINT) % 2147483648
+                    FROM CONSTANTS c
+                    UNION ALL
+                    SELECT
+                        i + 1,
+                        (1103515245 * seed + 12345) % 2147483648
+                    FROM seed_seq
+                         CROSS JOIN CONSTANTS c
+                    WHERE i < 2 * c.RESULT_LIMIT
+                )
+            SELECT
+                i                                 AS draw_number,
+                seed_seq.seed::FLOAT / 2147483648 AS r
+            FROM seed_seq
+        ),
+        candidates AS (
+            /*
+               For each random draw, find the photo whose [left_cumulative, right_cumulative)
+               covers r * total_weight. Order them by draw_number so we can filter by
+               “first come, first served” below.
+            */
+            SELECT
+                rng.draw_number,
+                w2.id,
+                w2.ts
+            FROM rng
+                 JOIN w2
+                      ON (rng.r * w2.total_weight) >= w2.left_cumulative
+                          AND (rng.r * w2.total_weight) < w2.right_cumulative
+            ORDER BY rng.draw_number
+        ),
+        filtered_candidates AS (
+            /*
+               Discard any photo if it’s within 15 minutes of an already-chosen photo.
+               Then keep only the first RESULT_LIMIT picks.
+            */
+            SELECT
+                a.draw_number,
+                ROW_NUMBER() OVER (ORDER BY a.draw_number) AS row_number,
+                a.id,
+                a.ts
+            FROM candidates a
+                 CROSS JOIN CONSTANTS c
+            WHERE NOT EXISTS (
+                SELECT
+                    1
+                FROM candidates b
+                WHERE b.draw_number < a.draw_number
+                  AND a.ts - b.ts < c.MIN_TIME_BETWEEN_PHOTOS -- Minimum spacing check
+                  AND b.ts - a.ts < c.MIN_TIME_BETWEEN_PHOTOS -- Minimum spacing check
+            )
+            ORDER BY a.draw_number
+        )
+
+/* ---------------------------------------------------------------------------
+   Final selection: up to 12 photos, sorted by time
+--------------------------------------------------------------------------- */
+    SELECT
+        fc.id,
+        cc.year
+    FROM filtered_candidates fc
+         CROSS JOIN CONSTANTS c
+         CROSS JOIN chosen_year cc
+    WHERE fc.row_number <= c.RESULT_LIMIT
+    ORDER BY fc.ts
 `;

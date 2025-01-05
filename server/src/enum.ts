@@ -68,6 +68,7 @@ export enum MemorylaneType {
   CLUSTER = 'cluster',
   SIMILARITY = 'similarity',
   PERSON = 'person',
+  YEAR = 'year',
 }
 
 export enum Permission {

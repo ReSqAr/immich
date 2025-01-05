@@ -10,4 +10,5 @@ export interface IMemorylaneRepository {
   recentHighlight(userIds: string[], seed: number, limit: number): Promise<Memorylane>;
   cluster(userIds: string[], seed: number, limit: number): Promise<Memorylane>;
   person(userIds: string[], seed: number, limit: number): Promise<Memorylane>;
+  year(userIds: string[], seed: number, limit: number): Promise<Memorylane>;
 }

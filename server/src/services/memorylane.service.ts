@@ -17,8 +17,9 @@ const N_ROUNDS = 100;
 const MEMORYLANE_WEIGHTS = [
   { item: MemorylaneType.RECENT_HIGHLIGHTS, weight: 0.1 },
   { item: MemorylaneType.CLUSTER, weight: 0.6 },
-  { item: MemorylaneType.SIMILARITY, weight: 0.15 },
-  { item: MemorylaneType.PERSON, weight: 0.15 },
+  { item: MemorylaneType.SIMILARITY, weight: 0.1 },
+  { item: MemorylaneType.PERSON, weight: 0.1 },
+  { item: MemorylaneType.YEAR, weight: 0.1 },
 ];
 
 const CLIP_QUERIES = {
@@ -345,6 +346,10 @@ export class MemorylaneService extends BaseService {
       case MemorylaneType.RECENT_HIGHLIGHTS: {
         const { assetIds, title } = await this.memorylaneRepository.recentHighlight(userIds, seed, effectiveLimit);
         return await this.loadAssetIds(assetIds, id, MemorylaneType.RECENT_HIGHLIGHTS, title, seed);
+      }
+      case MemorylaneType.YEAR: {
+        const { assetIds, title } = await this.memorylaneRepository.year(userIds, seed, effectiveLimit);
+        return await this.loadAssetIds(assetIds, id, MemorylaneType.YEAR, title, seed);
       }
       case MemorylaneType.SIMILARITY: {
         return await this.similarity(userIds, id, seed, effectiveLimit);
