@@ -6,20 +6,29 @@ import { IMemorylaneRepository } from 'src/interfaces/memorylane.interface';
 import { Repository } from 'typeorm';
 
 interface Memorylane {
-  title: string;
   assetIds: string[];
+}
+
+type RecentHighlightsMemoryLane = Memorylane;
+
+interface SpotlightYearMemoryLane extends Memorylane {
+  year: string | undefined;
+}
+
+interface ClusterMemoryLane extends Memorylane {
+  startDate: Date | undefined;
+  endDate: Date | undefined;
+  locations: string[];
+}
+
+interface PersonMemoryLane extends Memorylane {
+  personName: string | undefined;
 }
 
 type LocationStatistics = {
   cities?: Record<string, number>;
   states?: Record<string, number>;
   countries?: Record<string, number>;
-};
-
-type ClusterMetadata = {
-  locationStats: LocationStatistics;
-  startDate: Date;
-  endDate: Date;
 };
 
 function isLocationScattered(locations: Record<string, number>, threshold = 0.05, topN = 2): boolean {
@@ -40,65 +49,25 @@ function getTopLocations(locations: Record<string, number>, threshold = 0.05, to
     .map(([location]) => location);
 }
 
-function formatLocationList(locations: string[]): string {
-  if (locations.length === 0) {
-    return '';
-  }
-  if (locations.length === 1) {
-    return locations[0];
-  }
-  return `${locations.slice(0, -1).join(', ')} and ${locations.slice(-1)}`;
-}
-
-function formatDateRange(startDate: Date, endDate: Date): string {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-
-  // Same day
-  if (start.toDateString() === end.toDateString()) {
-    return start.toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
-  }
-
-  // Same month and year
-  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-    return `${start.toLocaleDateString(undefined, { month: 'long' })} ${start.getDate()}-${end.getDate()}, ${start.getFullYear()}`;
-  }
-
-  // Same year
-  if (start.getFullYear() === end.getFullYear()) {
-    return `${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}, ${start.getFullYear()}`;
-  }
-
-  // Different years
-  return `${start.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} - ${end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
-}
-
-function generateClusterTitle(metadata: ClusterMetadata): string {
-  const { locationStats, startDate, endDate } = metadata;
-
-  let location = '';
-
-  // Handle location part
+function extractLocations(locationStats: LocationStatistics): string[] {
   if (locationStats?.cities && !isLocationScattered(locationStats.cities)) {
     const topCities = getTopLocations(locationStats.cities);
     if (topCities.length > 0) {
-      location = formatLocationList(topCities);
+      return topCities;
     }
   } else if (locationStats?.states && !isLocationScattered(locationStats.states)) {
     const topStates = getTopLocations(locationStats.states);
     if (topStates.length > 0) {
-      location = formatLocationList(topStates);
+      return topStates;
     }
   } else if (locationStats?.countries && !isLocationScattered(locationStats.countries, 0.05, 10)) {
     const topCountries = getTopLocations(locationStats.countries, 0.05, 10);
     if (topCountries.length > 0) {
-      location = formatLocationList(topCountries);
+      return topCountries;
     }
   }
 
-  // Combine location with date range
-  const dateRange = formatDateRange(startDate, endDate);
-  return location == '' ? dateRange : `${location} (${dateRange})`;
+  return [];
 }
 
 @Injectable()
@@ -118,63 +87,57 @@ export class MemorylaneRepository implements IMemorylaneRepository {
     await this.assetRepository.query('REFRESH MATERIALIZED VIEW asset_analysis');
 
     const duration = Date.now() - startTime;
-    this.logger.debug(`refreshed all memorylane materialized views in ${duration}ms`)
+    this.logger.debug(`refreshed all memorylane materialized views in ${duration}ms`);
   }
 
-  async recentHighlight(userIds: string[], seed: number, limit: number): Promise<Memorylane> {
+  async recentHighlight(userIds: string[], seed: number, limit: number): Promise<RecentHighlightsMemoryLane> {
     const result = await this.assetRepository.query(recentHighlightsQuery, [seed, limit, userIds]);
     const assetIds: string[] = result.map(({ id }: { id: string }) => id);
 
-    const title = 'Recent highlights';
-    return { title, assetIds };
+    return { assetIds };
   }
 
-  async year(userIds: string[], seed: number, limit: number): Promise<Memorylane> {
+  async year(userIds: string[], seed: number, limit: number): Promise<SpotlightYearMemoryLane> {
     const result = await this.assetRepository.query(yearQuery, [seed, limit, userIds]);
     const assetIds: string[] = result.map(({ id }: { id: string }) => id);
 
-
-    let title = 'Spotlight';
-
+    let year = undefined;
     if (result && result.length > 0) {
-      const { year } = result[0];
-      title = `Spotlight on ${year}`;
+      year = result[0]['year'];
     }
 
-    return { title, assetIds };
+    return { year: `${year}`, assetIds };
   }
 
-  async cluster(userIds: string[], seed: number, limit: number): Promise<Memorylane> {
+  async cluster(userIds: string[], seed: number, limit: number): Promise<ClusterMemoryLane> {
     const result = await this.assetRepository.query(clusterQuery, [seed, limit, userIds]);
     const assetIds: string[] = result.map(({ id }: { id: string }) => id);
 
-    let title = 'Cluster';
+    let startDate = undefined;
+    let endDate = undefined;
+    let locations: string[] = [];
 
     if (result && result.length > 0) {
-      const { cluster_location_stats: locationStats, cluster_start: startDate, cluster_end: endDate } = result[0];
+      const { cluster_location_stats: locationStats, cluster_start: clusterStart, cluster_end: clusterEnd } = result[0];
+      startDate = new Date(clusterStart);
+      endDate = new Date(clusterEnd);
 
-      title = generateClusterTitle({
-        locationStats,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-      });
+      locations = extractLocations(locationStats);
     }
 
-    return { title, assetIds };
+    return { locations, startDate, endDate, assetIds };
   }
 
-  async person(userIds: string[], seed: number, limit: number): Promise<Memorylane> {
+  async person(userIds: string[], seed: number, limit: number): Promise<PersonMemoryLane> {
     const result = await this.assetRepository.query(personQuery, [seed, limit, userIds]);
     const assetIds: string[] = result.map(({ id }: { id: string }) => id);
 
-    let title = 'Spotlight';
-
+    let personName = undefined;
     if (result && result.length > 0) {
-      const { person_name: personName } = result[0];
-      title = personName ? `Spotlight on ${personName}` : title;
+      personName = result[0]['person_name'];
     }
 
-    return { title, assetIds };
+    return { personName, assetIds };
   }
 }
 

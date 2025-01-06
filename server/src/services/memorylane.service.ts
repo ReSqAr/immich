@@ -1,18 +1,17 @@
-import {BadRequestException, Injectable} from '@nestjs/common';
-import {OnJob} from 'src/decorators';
-import {mapAsset} from 'src/dtos/asset-response.dto';
-import {AuthDto} from 'src/dtos/auth.dto';
-import {MemorylaneResponseDto} from 'src/dtos/memorylane.dto';
-import {AssetEntity} from 'src/entities/asset.entity';
-import {MemorylaneType} from 'src/enum';
-import {JobName, JobOf, JobStatus, QueueName} from 'src/interfaces/job.interface';
-import {BaseService} from 'src/services/base.service';
-import {getMyPartnerIds} from 'src/utils/asset.util';
-import {isSmartSearchEnabled} from 'src/utils/misc';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { OnJob } from 'src/decorators';
+import { mapAsset } from 'src/dtos/asset-response.dto';
+import { AuthDto } from 'src/dtos/auth.dto';
+import { MemorylaneResponseDto } from 'src/dtos/memorylane.dto';
+import { AssetEntity } from 'src/entities/asset.entity';
+import { MemorylaneType } from 'src/enum';
+import { JobName, JobOf, JobStatus, QueueName } from 'src/interfaces/job.interface';
+import { BaseService } from 'src/services/base.service';
+import { getMyPartnerIds } from 'src/utils/asset.util';
+import { isSmartSearchEnabled } from 'src/utils/misc';
 
 const LIMIT = 12;
 const BINS = 1367;
-
 
 const MEMORYLANE_WEIGHTS = [
   { item: MemorylaneType.RECENT_HIGHLIGHTS, weight: 0.1 },
@@ -148,10 +147,10 @@ async function stringToSignedSHA32(str: string): Promise<number> {
   const view = new DataView(hashBuffer);
 
   return (
-    (view.getUint32(0) % 2**31) ^
-    (view.getUint32(4) % 2**31) ^
-    (view.getUint32(8) % 2**31) ^
-    (view.getUint32(12) % 2**31)
+    view.getUint32(0) % 2 ** 31 ^
+    view.getUint32(4) % 2 ** 31 ^
+    view.getUint32(8) % 2 ** 31 ^
+    view.getUint32(12) % 2 ** 31
   );
 }
 
@@ -179,7 +178,6 @@ function computeCumulativeWeights<T>(items: T[], getWeight: (item: T) => number)
   });
 }
 
-
 function findItemForRandom<T>(items: WeightedItem<T>[], random: number): T | undefined {
   const last = items.at(-1);
   if (last === undefined) {
@@ -189,9 +187,8 @@ function findItemForRandom<T>(items: WeightedItem<T>[], random: number): T | und
   const scaledTotal = Math.round(last.rightCumulative * BINS);
   const targetValue = random % scaledTotal;
 
-  return items.find((item) =>
-    item.leftCumulative * BINS <= targetValue && targetValue < item.rightCumulative * BINS
-  )?.item;
+  return items.find((item) => item.leftCumulative * BINS <= targetValue && targetValue < item.rightCumulative * BINS)
+    ?.item;
 }
 
 function capitalizeWords(str: string): string {
@@ -221,8 +218,8 @@ export function selectRandomQuery(seed: number): string {
   In tests this is good enough. An LCG was visibly not great.
  */
 function getRandom(seed: number, i: number) {
-  const CONST: bigint = 73244475n;
-  const result: bigint = (BigInt(seed ^ i) * CONST) % 4294967296n; // 2^32
+  const CONST: bigint = 73_244_475n;
+  const result: bigint = (BigInt(seed ^ i) * CONST) % 4_294_967_296n; // 2^32
   return Number(result);
 }
 
@@ -259,24 +256,17 @@ export function selectRandomPhotos(assets: AssetEntity[], seed: number, limit: n
 
 @Injectable()
 export class MemorylaneService extends BaseService {
-  private async loadAssetIds(assetIds: string[], id: string, memorylane: MemorylaneType, title: string) {
+  private async loadAssetIds(assetIds: string[]) {
     const assets = await this.assetRepository.getByIds(assetIds, { exifInfo: true, qualityAssessment: true });
 
     // Create a map of assets by their IDs for efficient lookup
     const assetMap = new Map(assets.map((asset) => [asset.id, asset]));
 
     // Map the assets in the original order using result.assetIds
-    const orderedAssets = assetIds
+    return assetIds
       .map((id) => assetMap.get(id))
       .filter((asset) => asset !== undefined)
       .map((asset) => mapAsset(asset));
-
-    return {
-      id,
-      type: memorylane,
-      title,
-      assets: orderedAssets,
-    };
   }
 
   private async getUserIdsToSearch(auth: AuthDto): Promise<string[]> {
@@ -310,7 +300,7 @@ export class MemorylaneService extends BaseService {
     return {
       id,
       type: MemorylaneType.SIMILARITY,
-      title: capitalizeWords(query),
+      metadata: { category: capitalizeWords(query) },
       parameter: seed,
       assets: selectedAssets.map((asset) => mapAsset(asset)),
     };
@@ -334,20 +324,44 @@ export class MemorylaneService extends BaseService {
 
     switch (effectiveMemorylane) {
       case MemorylaneType.CLUSTER: {
-        const { assetIds, title } = await this.memorylaneRepository.cluster(userIds, seed, effectiveLimit);
-        return await this.loadAssetIds(assetIds, id, MemorylaneType.CLUSTER, title);
+        const { assetIds, locations, startDate, endDate } = await this.memorylaneRepository.cluster(
+          userIds,
+          seed,
+          effectiveLimit,
+        );
+        return {
+          id,
+          type: MemorylaneType.CLUSTER,
+          metadata: { locations, startDate, endDate },
+          assets: await this.loadAssetIds(assetIds),
+        };
       }
       case MemorylaneType.PERSON: {
-        const { assetIds, title } = await this.memorylaneRepository.person(userIds, seed, effectiveLimit);
-        return await this.loadAssetIds(assetIds, id, MemorylaneType.PERSON, title);
+        const { assetIds, personName } = await this.memorylaneRepository.person(userIds, seed, effectiveLimit);
+        return {
+          id,
+          type: MemorylaneType.PERSON,
+          metadata: { personName },
+          assets: await this.loadAssetIds(assetIds),
+        };
       }
       case MemorylaneType.RECENT_HIGHLIGHTS: {
-        const { assetIds, title } = await this.memorylaneRepository.recentHighlight(userIds, seed, effectiveLimit);
-        return await this.loadAssetIds(assetIds, id, MemorylaneType.RECENT_HIGHLIGHTS, title);
+        const { assetIds } = await this.memorylaneRepository.recentHighlight(userIds, seed, effectiveLimit);
+        return {
+          id,
+          type: MemorylaneType.RECENT_HIGHLIGHTS,
+          metadata: {},
+          assets: await this.loadAssetIds(assetIds),
+        };
       }
       case MemorylaneType.YEAR: {
-        const { assetIds, title } = await this.memorylaneRepository.year(userIds, seed, effectiveLimit);
-        return await this.loadAssetIds(assetIds, id, MemorylaneType.YEAR, title);
+        const { assetIds, year } = await this.memorylaneRepository.year(userIds, seed, effectiveLimit);
+        return {
+          id,
+          type: MemorylaneType.YEAR,
+          metadata: { year },
+          assets: await this.loadAssetIds(assetIds),
+        };
       }
       case MemorylaneType.SIMILARITY: {
         return await this.similarity(userIds, id, seed, effectiveLimit);

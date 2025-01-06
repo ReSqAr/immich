@@ -10002,8 +10002,34 @@
           "id": {
             "type": "string"
           },
-          "title": {
-            "type": "string"
+          "metadata": {
+            "discriminator": {
+              "mapping": {
+                "cluster": "#/components/schemas/MemorlaneClusterMetadata",
+                "person": "#/components/schemas/MemorlanePersonMetadata",
+                "recent_highlights": "#/components/schemas/MemorlaneRecentHighlightsMetadata",
+                "similarity": "#/components/schemas/MemorlaneSimilarityMetadata",
+                "year": "#/components/schemas/MemorlaneYearMetadata"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MemorlaneClusterMetadata"
+              },
+              {
+                "$ref": "#/components/schemas/MemorlanePersonMetadata"
+              },
+              {
+                "$ref": "#/components/schemas/MemorlaneRecentHighlightsMetadata"
+              },
+              {
+                "$ref": "#/components/schemas/MemorlaneSimilarityMetadata"
+              },
+              {
+                "$ref": "#/components/schemas/MemorlaneYearMetadata"
+              }
+            ]
           },
           "type": {
             "allOf": [
@@ -10016,7 +10042,7 @@
         "required": [
           "assets",
           "id",
-          "title",
+          "metadata",
           "type"
         ],
         "type": "object"
