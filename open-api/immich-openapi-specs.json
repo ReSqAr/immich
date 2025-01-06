@@ -9999,9 +9999,6 @@
             },
             "type": "array"
           },
-          "id": {
-            "type": "string"
-          },
           "metadata": {
             "discriminator": {
               "mapping": {
@@ -10041,7 +10038,6 @@
         },
         "required": [
           "assets",
-          "id",
           "metadata",
           "type"
         ],
