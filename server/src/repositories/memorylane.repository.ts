@@ -111,9 +111,14 @@ export class MemorylaneRepository implements IMemorylaneRepository {
   }
 
   async refresh(): Promise<void> {
+    const startTime = Date.now();
+
     await this.assetRepository.query('REFRESH MATERIALIZED VIEW asset_dbscan');
     await this.assetRepository.query('REFRESH MATERIALIZED VIEW asset_dbscan_clusters');
     await this.assetRepository.query('REFRESH MATERIALIZED VIEW asset_analysis');
+
+    const duration = Date.now() - startTime;
+    this.logger.debug(`refreshed all memorylane materialized views in ${duration}ms`)
   }
 
   async recentHighlight(userIds: string[], seed: number, limit: number): Promise<Memorylane> {
