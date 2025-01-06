@@ -111,6 +111,8 @@ export class MemorylaneRepository implements IMemorylaneRepository {
   }
 
   async refresh(): Promise<void> {
+    await this.assetRepository.query('REFRESH MATERIALIZED VIEW asset_dbscan');
+    await this.assetRepository.query('REFRESH MATERIALIZED VIEW asset_dbscan_clusters');
     await this.assetRepository.query('REFRESH MATERIALIZED VIEW asset_analysis');
   }
 
@@ -291,7 +293,7 @@ const clusterQuery = `
             FROM w2
                  CROSS JOIN CONSTANTS c
                  JOIN generate_series(0, 2 * c.RESULT_LIMIT) i
-                      ON ((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
+                      ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
             ORDER BY draw_number
         ),
         filtered_candidates AS (
@@ -475,7 +477,7 @@ const recentHighlightsQuery = `
       FROM w2
            CROSS JOIN CONSTANTS c
            JOIN generate_series(0, 2 * c.RESULT_LIMIT) i
-                ON ((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
+                ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
       ORDER BY draw_number
     ),
     filtered_candidates AS (
@@ -607,7 +609,7 @@ const personQuery = `
             FROM w2
                  CROSS JOIN CONSTANTS c
                  JOIN generate_series(0, 2 * c.RESULT_LIMIT) i
-                      ON ((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
+                      ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
             ORDER BY draw_number    
         ),
         filtered_candidates AS (
@@ -755,7 +757,7 @@ const yearQuery = `
         FROM w2
          CROSS JOIN CONSTANTS c
          JOIN generate_series(0, 2 * c.RESULT_LIMIT) i
-              ON ((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
+              ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
         ORDER BY draw_number
     ),
     filtered_candidates AS (

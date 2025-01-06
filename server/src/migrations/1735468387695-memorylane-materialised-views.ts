@@ -266,9 +266,9 @@ FROM enriched_assets d
      CROSS JOIN constants c;
      `
 
-const asset_dbscan_view = `
+const asset_dbscan_materialised_view = `
 -- First view: asset_dbscan
-CREATE OR REPLACE VIEW asset_dbscan AS
+CREATE MATERIALIZED VIEW asset_dbscan AS
 WITH
     data AS (
         /* 1) Basic extraction from \`assets\` (rename columns, etc.) - only one representative per duplicate group*/
@@ -444,13 +444,13 @@ SELECT *
 FROM labeled_points;
 `
 
-const asset_dbscan_clusters_view = `
+const asset_dbscan_clusters_materialised_view = `
 -- Second view: asset_dbscan_clusters
 /*
      Gather cluster-level stats (start, end, cardinality, duration).
      We skip cluster_id = -1, because that's noise.
 */
-CREATE OR REPLACE VIEW asset_dbscan_clusters AS
+CREATE MATERIALIZED VIEW asset_dbscan_clusters AS
 WITH
     cluster_data AS (
         SELECT
@@ -597,15 +597,15 @@ export class MemorylaneMaterialisedViews1735468387695 implements MigrationInterf
     public async up(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query(asset_home_detection_view);
         await queryRunner.query(asset_photo_classification_view);
-        await queryRunner.query(asset_dbscan_view);
-        await queryRunner.query(asset_dbscan_clusters_view);
+        await queryRunner.query(asset_dbscan_materialised_view);
+        await queryRunner.query(asset_dbscan_clusters_materialised_view);
         await queryRunner.query(asset_analysis_materialised_view);
     }
 
     public async down(queryRunner: QueryRunner): Promise<void> {
         await queryRunner.query("DROP MATERIALIZED VIEW IF EXISTS asset_analysis;");
-        await queryRunner.query("DROP VIEW IF EXISTS asset_dbscan_clusters;");
-        await queryRunner.query("DROP VIEW IF EXISTS asset_dbscan;");
+        await queryRunner.query("DROP MATERIALIZED VIEW IF EXISTS asset_dbscan_clusters;");
+        await queryRunner.query("DROP MATERIALIZED VIEW IF EXISTS asset_dbscan;");
         await queryRunner.query("DROP VIEW IF EXISTS asset_photo_classification;");
         await queryRunner.query("DROP VIEW IF EXISTS asset_home_detection;");
     }
