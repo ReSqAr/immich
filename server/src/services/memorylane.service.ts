@@ -2,7 +2,14 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { OnJob } from 'src/decorators';
 import { mapAsset } from 'src/dtos/asset-response.dto';
 import { AuthDto } from 'src/dtos/auth.dto';
-import { MemorylaneResponseDto } from 'src/dtos/memorylane.dto';
+import {
+  MemorlaneClusterMetadata,
+  MemorlanePersonMetadata,
+  MemorlaneRecentHighlightsMetadata,
+  MemorlaneSimilarityMetadata,
+  MemorlaneYearMetadata,
+  MemorylaneResponseDto,
+} from 'src/dtos/memorylane.dto';
 import { AssetEntity } from 'src/entities/asset.entity';
 import { MemorylaneType } from 'src/enum';
 import { JobName, JobOf, JobStatus, QueueName } from 'src/interfaces/job.interface';
@@ -278,7 +285,7 @@ export class MemorylaneService extends BaseService {
     return [auth.user.id, ...partnerIds];
   }
 
-  private async similarity(userIds: string[], id: string, seed: number, limit: number) {
+  private async similarity(userIds: string[], seed: number, limit: number) {
     const query = selectRandomQuery(seed);
     const pagination = { page: 1, size: 4 * limit };
     const { machineLearning } = await this.getConfig({ withCache: false });
@@ -298,10 +305,7 @@ export class MemorylaneService extends BaseService {
     const selectedAssets = selectRandomPhotos(result.items, seed, limit);
 
     return {
-      id,
-      type: MemorylaneType.SIMILARITY,
-      metadata: { category: capitalizeWords(query) },
-      parameter: seed,
+      query,
       assets: selectedAssets.map((asset) => mapAsset(asset)),
     };
   }
@@ -330,41 +334,42 @@ export class MemorylaneService extends BaseService {
           effectiveLimit,
         );
         return {
-          id,
           type: MemorylaneType.CLUSTER,
-          metadata: { locations, startDate, endDate },
+          metadata: { locations, startDate, endDate } as MemorlaneClusterMetadata,
           assets: await this.loadAssetIds(assetIds),
         };
       }
       case MemorylaneType.PERSON: {
         const { assetIds, personName } = await this.memorylaneRepository.person(userIds, seed, effectiveLimit);
         return {
-          id,
           type: MemorylaneType.PERSON,
-          metadata: { personName },
+          metadata: { personName } as MemorlanePersonMetadata,
           assets: await this.loadAssetIds(assetIds),
         };
       }
       case MemorylaneType.RECENT_HIGHLIGHTS: {
         const { assetIds } = await this.memorylaneRepository.recentHighlight(userIds, seed, effectiveLimit);
         return {
-          id,
           type: MemorylaneType.RECENT_HIGHLIGHTS,
-          metadata: {},
+          metadata: {} as MemorlaneRecentHighlightsMetadata,
           assets: await this.loadAssetIds(assetIds),
+        };
+      }
+      case MemorylaneType.SIMILARITY: {
+        const { assets, query } = await this.similarity(userIds, seed, effectiveLimit);
+        return {
+          type: MemorylaneType.SIMILARITY,
+          metadata: { category: capitalizeWords(query) } as MemorlaneSimilarityMetadata,
+          assets,
         };
       }
       case MemorylaneType.YEAR: {
         const { assetIds, year } = await this.memorylaneRepository.year(userIds, seed, effectiveLimit);
         return {
-          id,
           type: MemorylaneType.YEAR,
-          metadata: { year },
+          metadata: { year } as MemorlaneYearMetadata,
           assets: await this.loadAssetIds(assetIds),
         };
-      }
-      case MemorylaneType.SIMILARITY: {
-        return await this.similarity(userIds, id, seed, effectiveLimit);
       }
     }
   }

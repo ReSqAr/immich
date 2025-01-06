@@ -22,28 +22,27 @@ export class MemorylaneQueryDto {
   type?: MemorylaneType;
 }
 
-class MemorlaneClusterMetadata {
+export class MemorlaneClusterMetadata {
   startDate?: Date;
   endDate?: Date;
   locations?: string[];
 }
 
-class MemorlanePersonMetadata {
+export class MemorlanePersonMetadata {
   personName?: string;
 }
 
-class MemorlaneRecentHighlightsMetadata {}
+export class MemorlaneRecentHighlightsMetadata {}
 
-class MemorlaneSimilarityMetadata {
+export class MemorlaneSimilarityMetadata {
   category?: string;
 }
 
-class MemorlaneYearMetadata {
+export class MemorlaneYearMetadata {
   year?: string;
 }
 
 export class MemorylaneResponseDto {
-  id!: string;
   @ApiProperty({ enumName: 'MemorylaneType', enum: MemorylaneType })
   type!: MemorylaneType;
   assets!: AssetResponseDto[];
