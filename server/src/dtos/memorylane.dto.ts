@@ -1,4 +1,4 @@
-import { ApiProperty, getSchemaPath } from '@nestjs/swagger';
+import { ApiExtraModels, ApiProperty, getSchemaPath } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsInt, IsNotEmpty, IsPositive, IsString } from 'class-validator';
 import { AssetResponseDto } from 'src/dtos/asset-response.dto';
@@ -43,6 +43,13 @@ export class MemorlaneYearMetadata {
   year?: string;
 }
 
+@ApiExtraModels(
+  MemorlaneClusterMetadata,
+  MemorlanePersonMetadata,
+  MemorlaneRecentHighlightsMetadata,
+  MemorlaneSimilarityMetadata,
+  MemorlaneYearMetadata,
+)
 export class MemorylaneResponseDto {
   @ApiProperty({ enumName: 'MemorylaneType', enum: MemorylaneType })
   type!: MemorylaneType;

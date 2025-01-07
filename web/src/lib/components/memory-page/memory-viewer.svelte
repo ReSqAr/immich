@@ -25,7 +25,7 @@
   import { locale } from '$lib/stores/preferences.store';
   import { getAssetThumbnailUrl, handlePromiseError, memoryLaneTitle } from '$lib/utils';
   import { fromLocalDateTime } from '$lib/utils/timeline-util';
-  import { AssetMediaSize, getMemoryLane, type AssetResponseDto, type MemoryLaneResponseDto } from '@immich/sdk';
+  import { AssetMediaSize, getMemoryLane2, type AssetResponseDto, type MemorylaneResponseDto } from '@immich/sdk';
   import {
     mdiChevronDown,
     mdiChevronLeft,
@@ -55,12 +55,12 @@
   };
 
   type MemoryAsset = MemoryIndex & {
-    memory: MemoryLaneResponseDto;
+    memory: MemorylaneResponseDto;
     asset: AssetResponseDto;
-    previousMemory?: MemoryLaneResponseDto;
+    previousMemory?: MemorylaneResponseDto;
     previous?: MemoryAsset;
     next?: MemoryAsset;
-    nextMemory?: MemoryLaneResponseDto;
+    nextMemory?: MemorylaneResponseDto;
   };
 
   let memoryGallery: HTMLElement | undefined = $state();
@@ -188,10 +188,25 @@
 
   onMount(async () => {
     if (!$memoryStore) {
-      const localTime = new Date();
-      $memoryStore = await getMemoryLane({
-        month: localTime.getMonth() + 1,
-        day: localTime.getDate(),
+      onMount(async () => {
+        const localTime = new Date();
+        const formattedTime = localTime
+          .toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          })
+          .replace(',', '');
+
+        const promises = Array.from({ length: 5 }, (_, i) => {
+          const id = `${formattedTime} #${i}`;
+          return getMemoryLane2({ id, limit: 12 });
+        });
+
+        $memoryStore = await Promise.all(promises);
       });
     }
 
@@ -268,7 +283,7 @@
       {#snippet leading()}
         {#if current}
           <p class="text-lg">
-            {$memoryLaneTitle(current.memory.yearsAgo)}
+            {$memoryLaneTitle(current.memory.type, current.memory.metadata)}
           </p>
         {/if}
       {/snippet}
@@ -352,7 +367,7 @@
             {#if current.previousMemory}
               <div class="absolute bottom-4 right-4 text-left text-white">
                 <p class="text-xs font-semibold text-gray-200">{$t('previous').toUpperCase()}</p>
-                <p class="text-xl">{$memoryLaneTitle(current.previousMemory.yearsAgo)}</p>
+                <p class="text-xl">{$memoryLaneTitle(current.memory.type, current.memory.metadata)}</p>
               </div>
             {/if}
           </button>
@@ -449,7 +464,7 @@
             {#if current.nextMemory}
               <div class="absolute bottom-4 left-4 text-left text-white">
                 <p class="text-xs font-semibold text-gray-200">{$t('up_next').toUpperCase()}</p>
-                <p class="text-xl">{$memoryLaneTitle(current.nextMemory.yearsAgo)}</p>
+                <p class="text-xl">{$memoryLaneTitle(current.memory.type, current.memory.metadata)}</p>
               </div>
             {/if}
           </button>

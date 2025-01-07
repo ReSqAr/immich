@@ -9852,6 +9852,56 @@
         },
         "type": "object"
       },
+      "MemorlaneClusterMetadata": {
+        "properties": {
+          "clusterID": {
+            "type": "number"
+          },
+          "endDate": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "locations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "startDate": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MemorlanePersonMetadata": {
+        "properties": {
+          "personName": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MemorlaneRecentHighlightsMetadata": {
+        "properties": {},
+        "type": "object"
+      },
+      "MemorlaneSimilarityMetadata": {
+        "properties": {
+          "category": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "MemorlaneYearMetadata": {
+        "properties": {
+          "year": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "MemoryCreateDto": {
         "properties": {
           "assetIds": {

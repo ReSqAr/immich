@@ -1,11 +1,11 @@
-import { NotificationType, notificationController } from '$lib/components/shared-components/notification/notification';
+import { notificationController, NotificationType } from '$lib/components/shared-components/notification/notification';
 import { defaultLang, langs, locales } from '$lib/constants';
 import { lang } from '$lib/stores/preferences.store';
 import { handleError } from '$lib/utils/handle-error';
 import {
   AssetJobName,
   AssetMediaSize,
-  JobName,
+  type AssetResponseDto,
   finishOAuth,
   getAssetOriginalPath,
   getAssetPlaybackPath,
@@ -13,12 +13,13 @@ import {
   getBaseUrl,
   getPeopleThumbnailPath,
   getUserProfileImagePath,
+  JobName,
   linkOAuthAccount,
-  startOAuth,
-  unlinkOAuthAccount,
-  type AssetResponseDto,
+  MemorylaneType,
   type PersonResponseDto,
   type SharedLinkResponseDto,
+  startOAuth,
+  unlinkOAuthAccount,
   type UserResponseDto,
 } from '@immich/sdk';
 import { mdiCogRefreshOutline, mdiDatabaseRefreshOutline, mdiHeadSyncOutline, mdiImageRefreshOutline } from '@mdi/js';
@@ -320,8 +321,85 @@ export const handlePromiseError = <T>(promise: Promise<T>): void => {
   promise.catch((error) => console.error(`[utils.ts]:handlePromiseError ${error}`, error));
 };
 
+function formatLocationList(locations: string[]) {
+  if (!locations || locations.length === 0) {
+    return '';
+  }
+  if (locations.length === 1) {
+    return locations[0];
+  }
+  return `${locations.slice(0, -1).join(', ')} and ${locations.slice(-1)}`;
+}
+
+function formatDateRange(startDate: string, endDate: string) {
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  // Same day
+  if (start.toDateString() === end.toDateString()) {
+    return start.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  }
+
+  // Same month and year
+  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
+    return `${start.toLocaleDateString('en-US', { month: 'long' })} ${start.getDate()}-${end.getDate()}, ${start.getFullYear()}`;
+  }
+
+  // Same year
+  if (start.getFullYear() === end.getFullYear()) {
+    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${start.getFullYear()}`;
+  }
+
+  // Different years
+  return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+}
+
+function generateTitle(type: MemorylaneType, metadata: any): string {
+  // TODO: fix any
+  if (!metadata) {
+    return 'Unknown';
+  }
+
+  switch (type) {
+    case MemorylaneType.Similarity: {
+      return metadata.category || 'Similar Photos';
+    }
+
+    case MemorylaneType.Person: {
+      return `Spotlight on ${metadata.personName}`;
+    }
+
+    case MemorylaneType.Year: {
+      return `Spotlight on ${metadata.year}`;
+    }
+
+    case MemorylaneType.RecentHighlights: {
+      return 'Recent Highlights';
+    }
+
+    case MemorylaneType.Cluster: {
+      const locationStr = metadata.locations ? formatLocationList(metadata.locations) : '';
+      const dateStr =
+        metadata.startDate && metadata.endDate ? formatDateRange(metadata.startDate, metadata.endDate) : '';
+
+      if (locationStr && dateStr) {
+        return `${locationStr} - ${dateStr}`;
+      } else if (locationStr) {
+        return locationStr;
+      } else if (dateStr) {
+        return dateStr;
+      }
+      return 'Photo Cluster';
+    }
+
+    default: {
+      return 'Photo Collection';
+    }
+  }
+}
+
 export const memoryLaneTitle = derived(t, ($t) => {
-  return (yearsAgo: number) => $t('years_ago', { values: { years: yearsAgo } });
+  return (type: MemorylaneType, metadata: any) => generateTitle(type, metadata);
 });
 
 export const withError = async <T>(fn: () => Promise<T>): Promise<[undefined, T] | [unknown, undefined]> => {

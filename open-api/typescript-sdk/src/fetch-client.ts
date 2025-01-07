@@ -636,11 +636,35 @@ export type MemoryUpdateDto = {
     memoryAt?: string;
     seenAt?: string;
 };
+export type MemorlaneClusterMetadata = {
+    clusterID?: number;
+    endDate?: string;
+    locations?: string[];
+    startDate?: string;
+};
+export type MemorlanePersonMetadata = {
+    personName?: string;
+};
+export type MemorlaneRecentHighlightsMetadata = {};
+export type MemorlaneSimilarityMetadata = {
+    category?: string;
+};
+export type MemorlaneYearMetadata = {
+    year?: string;
+};
 export type MemorylaneResponseDto = {
     assets: AssetResponseDto[];
-    id: string;
-    parameter: number;
-    title: string;
+    metadata: ({
+        "type": "cluster";
+    } & MemorlaneClusterMetadata) | ({
+        "type": "person";
+    } & MemorlanePersonMetadata) | ({
+        "type": "recent_highlights";
+    } & MemorlaneRecentHighlightsMetadata) | ({
+        "type": "similarity";
+    } & MemorlaneSimilarityMetadata) | ({
+        "type": "year";
+    } & MemorlaneYearMetadata);
     "type": MemorylaneType;
 };
 export type TemplateDto = {
@@ -3539,7 +3563,9 @@ export enum MemoryType {
 export enum MemorylaneType {
     RecentHighlights = "recent_highlights",
     Cluster = "cluster",
-    Similarity = "similarity"
+    Similarity = "similarity",
+    Person = "person",
+    Year = "year"
 }
 export enum PartnerDirection {
     SharedBy = "shared-by",
