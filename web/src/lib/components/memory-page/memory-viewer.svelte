@@ -23,7 +23,7 @@
   import { type Viewport } from '$lib/stores/assets.store';
   import { memoryStore } from '$lib/stores/memory.store';
   import { locale } from '$lib/stores/preferences.store';
-  import { getAssetThumbnailUrl, handlePromiseError, memoryLaneTitle } from '$lib/utils';
+  import { getAssetThumbnailUrl, handlePromiseError, memoryLaneTitle, memoryLaneSubtitle } from '$lib/utils';
   import { fromLocalDateTime } from '$lib/utils/timeline-util';
   import {
     AssetMediaSize,
@@ -286,8 +286,15 @@
     <ControlAppBar onClose={() => goto(AppRoute.PHOTOS)} forceDark>
       {#snippet leading()}
         {#if current}
-          <p class="text-lg whitespace-pre-wrap whitespace-normal">
-            {$memoryLaneTitle(current.memory)}
+          <p class="text-lg whitespace-normal">
+            {#if $memoryLaneSubtitle(current.memory)}
+              <span class="text-sm">
+                {$memoryLaneSubtitle(current.memory)}
+              </span>
+              <br/>{$memoryLaneTitle(current.memory)}
+            {:else}
+              {$memoryLaneTitle(current.memory)}
+            {/if}
           </p>
         {/if}
       {/snippet}
@@ -371,7 +378,12 @@
             {#if current.previousMemory}
               <div class="absolute bottom-4 right-4 text-left text-white">
                 <p class="text-xs font-semibold text-gray-200">{$t('previous').toUpperCase()}</p>
-                <p class="text-xl whitespace-pre-wrap whitespace-normal">{$memoryLaneTitle(current.previousMemory)}</p>
+                <p class="text-xl whitespace-normal">
+                  <span class="text-sm">
+                    {$memoryLaneSubtitle(current.previousMemory)}
+                  </span>
+                  <br/>{$memoryLaneTitle(current.previousMemory)}
+                </p>
               </div>
             {/if}
           </button>
@@ -468,7 +480,11 @@
             {#if current.nextMemory}
               <div class="absolute bottom-4 left-4 text-left text-white">
                 <p class="text-xs font-semibold text-gray-200">{$t('up_next').toUpperCase()}</p>
-                <p class="text-xl whitespace-pre-wrap whitespace-normal">{$memoryLaneTitle(current.nextMemory)}</p>
+                <p class="text-xl whitespace-normal">
+                  <span class="text-sm">
+                    {$memoryLaneSubtitle(current.nextMemory)}
+                  </span><br/>{$memoryLaneTitle(current.nextMemory)}
+                </p>
               </div>
             {/if}
           </button>

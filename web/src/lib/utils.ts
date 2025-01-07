@@ -359,6 +359,22 @@ function formatDateRange(startDate: string, endDate: string) {
   return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 }
 
+function generateSubtitle(memorylane: MemorylaneResponseDto): string {
+  if (!memorylane.type) {
+    return '';
+  }
+
+  switch (memorylane.type) {
+    case MemorylaneType.Cluster: {
+      const metadata = memorylane.metadata as MemorlaneClusterMetadata;
+      return metadata.startDate && metadata.endDate ? formatDateRange(metadata.startDate, metadata.endDate) : '';
+    }
+
+    default: {
+      return '';
+    }
+  }
+}
 function generateTitle(memorylane: MemorylaneResponseDto): string {
   if (!memorylane.type) {
     return 'Unknown';
@@ -368,15 +384,9 @@ function generateTitle(memorylane: MemorylaneResponseDto): string {
     case MemorylaneType.Cluster: {
       const metadata = memorylane.metadata as MemorlaneClusterMetadata;
       const locationStr = metadata.locations ? formatLocationList(metadata.locations) : '';
-      const dateStr =
-        metadata.startDate && metadata.endDate ? formatDateRange(metadata.startDate, metadata.endDate) : '';
 
-      if (locationStr && dateStr) {
-        return `${dateStr}\n${locationStr}`;
-      } else if (locationStr) {
+      if (locationStr) {
         return locationStr;
-      } else if (dateStr) {
-        return dateStr;
       }
       return 'Photo Cluster';
     }
@@ -405,6 +415,10 @@ function generateTitle(memorylane: MemorylaneResponseDto): string {
     }
   }
 }
+
+export const memoryLaneSubtitle = derived(t, ($t) => {
+  return (memorylane: MemorylaneResponseDto) => generateSubtitle(memorylane);
+});
 
 export const memoryLaneTitle = derived(t, ($t) => {
   return (memorylane: MemorylaneResponseDto) => generateTitle(memorylane);
