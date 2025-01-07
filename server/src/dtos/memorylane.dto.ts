@@ -23,6 +23,7 @@ export class MemorylaneQueryDto {
 }
 
 export class MemorlaneClusterMetadata {
+  clusterID?: number;
   startDate?: Date;
   endDate?: Date;
   locations?: string[];

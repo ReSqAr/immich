@@ -328,14 +328,14 @@ export class MemorylaneService extends BaseService {
 
     switch (effectiveMemorylane) {
       case MemorylaneType.CLUSTER: {
-        const { assetIds, locations, startDate, endDate } = await this.memorylaneRepository.cluster(
+        const { assetIds, clusterID, locations, startDate, endDate } = await this.memorylaneRepository.cluster(
           userIds,
           seed,
           effectiveLimit,
         );
         return {
           type: MemorylaneType.CLUSTER,
-          metadata: { locations, startDate, endDate } as MemorlaneClusterMetadata,
+          metadata: { clusterID, locations, startDate, endDate } as MemorlaneClusterMetadata,
           assets: await this.loadAssetIds(assetIds),
         };
       }

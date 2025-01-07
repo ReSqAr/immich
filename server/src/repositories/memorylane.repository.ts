@@ -2,28 +2,14 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { AssetEntity } from 'src/entities/asset.entity';
 import { ILoggerRepository } from 'src/interfaces/logger.interface';
-import { IMemorylaneRepository } from 'src/interfaces/memorylane.interface';
+import {
+  IMemorylaneRepository,
+  MemoryLaneCluster,
+  MemoryLanePerson,
+  MemoryLaneRecentHighlights,
+  MemoryLaneYear,
+} from 'src/interfaces/memorylane.interface';
 import { Repository } from 'typeorm';
-
-interface Memorylane {
-  assetIds: string[];
-}
-
-type RecentHighlightsMemoryLane = Memorylane;
-
-interface SpotlightYearMemoryLane extends Memorylane {
-  year: string | undefined;
-}
-
-interface ClusterMemoryLane extends Memorylane {
-  startDate: Date | undefined;
-  endDate: Date | undefined;
-  locations: string[];
-}
-
-interface PersonMemoryLane extends Memorylane {
-  personName: string | undefined;
-}
 
 type LocationStatistics = {
   cities?: Record<string, number>;
@@ -90,45 +76,31 @@ export class MemorylaneRepository implements IMemorylaneRepository {
     this.logger.debug(`refreshed all memorylane materialized views in ${duration}ms`);
   }
 
-  async recentHighlight(userIds: string[], seed: number, limit: number): Promise<RecentHighlightsMemoryLane> {
-    const result = await this.assetRepository.query(recentHighlightsQuery, [seed, limit, userIds]);
-    const assetIds: string[] = result.map(({ id }: { id: string }) => id);
-
-    return { assetIds };
-  }
-
-  async year(userIds: string[], seed: number, limit: number): Promise<SpotlightYearMemoryLane> {
-    const result = await this.assetRepository.query(yearQuery, [seed, limit, userIds]);
-    const assetIds: string[] = result.map(({ id }: { id: string }) => id);
-
-    let year = undefined;
-    if (result && result.length > 0) {
-      year = result[0]['year'];
-    }
-
-    return { year: `${year}`, assetIds };
-  }
-
-  async cluster(userIds: string[], seed: number, limit: number): Promise<ClusterMemoryLane> {
+  async cluster(userIds: string[], seed: number, limit: number): Promise<MemoryLaneCluster> {
     const result = await this.assetRepository.query(clusterQuery, [seed, limit, userIds]);
     const assetIds: string[] = result.map(({ id }: { id: string }) => id);
 
-    let startDate = undefined;
-    let endDate = undefined;
-    let locations: string[] = [];
-
     if (result && result.length > 0) {
-      const { cluster_location_stats: locationStats, cluster_start: clusterStart, cluster_end: clusterEnd } = result[0];
-      startDate = new Date(clusterStart);
-      endDate = new Date(clusterEnd);
+      const {
+        cluster_id: clusterID,
+        cluster_start: startDate,
+        cluster_end: endDate,
+        cluster_location_stats: locationStats,
+      } = result[0];
 
-      locations = extractLocations(locationStats);
+      return {
+        clusterID,
+        locations: extractLocations(locationStats),
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        assetIds,
+      };
     }
 
-    return { locations, startDate, endDate, assetIds };
+    return { clusterID: undefined, locations: [], startDate: undefined, endDate: undefined, assetIds };
   }
 
-  async person(userIds: string[], seed: number, limit: number): Promise<PersonMemoryLane> {
+  async person(userIds: string[], seed: number, limit: number): Promise<MemoryLanePerson> {
     const result = await this.assetRepository.query(personQuery, [seed, limit, userIds]);
     const assetIds: string[] = result.map(({ id }: { id: string }) => id);
 
@@ -138,6 +110,25 @@ export class MemorylaneRepository implements IMemorylaneRepository {
     }
 
     return { personName, assetIds };
+  }
+
+  async recentHighlight(userIds: string[], seed: number, limit: number): Promise<MemoryLaneRecentHighlights> {
+    const result = await this.assetRepository.query(recentHighlightsQuery, [seed, limit, userIds]);
+    const assetIds: string[] = result.map(({ id }: { id: string }) => id);
+
+    return { assetIds };
+  }
+
+  async year(userIds: string[], seed: number, limit: number): Promise<MemoryLaneYear> {
+    const result = await this.assetRepository.query(yearQuery, [seed, limit, userIds]);
+    const assetIds: string[] = result.map(({ id }: { id: string }) => id);
+
+    let year = undefined;
+    if (result && result.length > 0) {
+      year = result[0]['year'];
+    }
+
+    return { year: `${year}`, assetIds };
   }
 }
 
@@ -377,6 +368,7 @@ const clusterQuery = `
     SELECT
         fc.id,
         lc.location_distribution AS cluster_location_stats,
+        cc.cluster_id,
         cc.cluster_start,
         cc.cluster_end
     FROM filtered_candidates fc
