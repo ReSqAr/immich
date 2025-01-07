@@ -3,7 +3,7 @@
   import Icon from '$lib/components/elements/icon.svelte';
   import { AppRoute, QueryParameter } from '$lib/constants';
   import { memoryStore } from '$lib/stores/memory.store';
-  import {getAssetThumbnailUrl, memoryLaneSubtitle, memoryLaneTitle} from '$lib/utils';
+  import { getAssetThumbnailUrl, memoryLaneSubtitle, memoryLaneTitle } from '$lib/utils';
   import { getAltText } from '$lib/utils/thumbnail-util';
   import { getMemoryLanes } from '@immich/sdk';
   import { mdiChevronLeft, mdiChevronRight } from '@mdi/js';
@@ -103,7 +103,7 @@
               <span class="text-sm">
                 {$memoryLaneSubtitle(memory)}
               </span>
-              <br/>{$memoryLaneTitle(memory)}
+              <br />{$memoryLaneTitle(memory)}
             </p>
             <div
               class="absolute left-0 top-0 z-0 h-full w-full rounded-xl bg-gradient-to-t from-black/40 via-transparent to-transparent transition-all hover:bg-black/20"

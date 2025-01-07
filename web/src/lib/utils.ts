@@ -340,23 +340,31 @@ function formatDateRange(startDate: string, endDate: string) {
   const start = new Date(startDate);
   const end = new Date(endDate);
 
-  // Same day
-  if (start.toDateString() === end.toDateString()) {
-    return start.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const startDay = start.getDate();
+  const startMonth = start.toLocaleDateString('en-US', { month: 'long' });
+  const startYear = start.getFullYear();
+
+  const endDay = end.getDate();
+  const endMonth = end.toLocaleDateString('en-US', { month: 'long' });
+  const endYear = end.getFullYear();
+
+  // case 1: same day, month, year
+  if (startDay === endDay && start.getMonth() === end.getMonth() && startYear === endYear) {
+    return `${startDay} ${startMonth} ${startYear}`;
   }
 
-  // Same month and year
-  if (start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()) {
-    return `${start.toLocaleDateString('en-US', { month: 'long' })} ${start.getDate()}-${end.getDate()}, ${start.getFullYear()}`;
+  // case 2: same month & year
+  if (start.getMonth() === end.getMonth() && startYear === endYear) {
+    return `${startDay}-${endDay} ${startMonth} ${startYear}`;
   }
 
-  // Same year
-  if (start.getFullYear() === end.getFullYear()) {
-    return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${start.getFullYear()}`;
+  // case 3: same year
+  if (startYear === endYear) {
+    return `${startDay} ${startMonth} - ${endDay} ${endMonth} ${startYear}`;
   }
 
-  // Different years
-  return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+  // case 4: different years
+  return `${startDay} ${startMonth} ${startYear} - ${endDay} ${endMonth} ${endYear}`;
 }
 
 function generateSubtitle(memorylane: MemorylaneResponseDto): string {

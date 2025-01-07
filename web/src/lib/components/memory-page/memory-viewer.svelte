@@ -25,12 +25,7 @@
   import { locale } from '$lib/stores/preferences.store';
   import { getAssetThumbnailUrl, handlePromiseError, memoryLaneTitle, memoryLaneSubtitle } from '$lib/utils';
   import { fromLocalDateTime } from '$lib/utils/timeline-util';
-  import {
-    AssetMediaSize,
-    type AssetResponseDto,
-    type MemorylaneResponseDto,
-    getMemoryLanes,
-  } from '@immich/sdk';
+  import { AssetMediaSize, type AssetResponseDto, type MemorylaneResponseDto, getMemoryLanes } from '@immich/sdk';
   import {
     mdiChevronDown,
     mdiChevronLeft,
@@ -291,7 +286,7 @@
               <span class="text-sm">
                 {$memoryLaneSubtitle(current.memory)}
               </span>
-              <br/>{$memoryLaneTitle(current.memory)}
+              <br />{$memoryLaneTitle(current.memory)}
             {:else}
               {$memoryLaneTitle(current.memory)}
             {/if}
@@ -382,7 +377,7 @@
                   <span class="text-sm">
                     {$memoryLaneSubtitle(current.previousMemory)}
                   </span>
-                  <br/>{$memoryLaneTitle(current.previousMemory)}
+                  <br />{$memoryLaneTitle(current.previousMemory)}
                 </p>
               </div>
             {/if}
@@ -483,7 +478,7 @@
                 <p class="text-xl whitespace-normal">
                   <span class="text-sm">
                     {$memoryLaneSubtitle(current.nextMemory)}
-                  </span><br/>{$memoryLaneTitle(current.nextMemory)}
+                  </span><br />{$memoryLaneTitle(current.nextMemory)}
                 </p>
               </div>
             {/if}
