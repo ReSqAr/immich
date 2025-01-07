@@ -27,7 +27,6 @@
   import { fromLocalDateTime } from '$lib/utils/timeline-util';
   import {
     AssetMediaSize,
-    getMemoryLane2,
     type AssetResponseDto,
     type MemorylaneResponseDto,
     getMemoryLanes,
@@ -287,7 +286,7 @@
     <ControlAppBar onClose={() => goto(AppRoute.PHOTOS)} forceDark>
       {#snippet leading()}
         {#if current}
-          <p class="text-lg">
+          <p class="text-lg whitespace-pre-wrap whitespace-normal">
             {$memoryLaneTitle(current.memory)}
           </p>
         {/if}
@@ -372,7 +371,7 @@
             {#if current.previousMemory}
               <div class="absolute bottom-4 right-4 text-left text-white">
                 <p class="text-xs font-semibold text-gray-200">{$t('previous').toUpperCase()}</p>
-                <p class="text-xl">{$memoryLaneTitle(current.memory.type, current.memory.metadata)}</p>
+                <p class="text-xl whitespace-pre-wrap whitespace-normal">{$memoryLaneTitle(current.previousMemory)}</p>
               </div>
             {/if}
           </button>
@@ -469,7 +468,7 @@
             {#if current.nextMemory}
               <div class="absolute bottom-4 left-4 text-left text-white">
                 <p class="text-xs font-semibold text-gray-200">{$t('up_next').toUpperCase()}</p>
-                <p class="text-xl">{$memoryLaneTitle(current.memory.type, current.memory.metadata)}</p>
+                <p class="text-xl whitespace-pre-wrap whitespace-normal">{$memoryLaneTitle(current.nextMemory)}</p>
               </div>
             {/if}
           </button>

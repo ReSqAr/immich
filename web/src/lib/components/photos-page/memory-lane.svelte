@@ -5,7 +5,7 @@
   import { memoryStore } from '$lib/stores/memory.store';
   import { getAssetThumbnailUrl, memoryLaneTitle } from '$lib/utils';
   import { getAltText } from '$lib/utils/thumbnail-util';
-  import { getMemoryLane2, getMemoryLanes } from '@immich/sdk';
+  import { getMemoryLanes } from '@immich/sdk';
   import { mdiChevronLeft, mdiChevronRight } from '@mdi/js';
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
@@ -99,7 +99,7 @@
               alt={$t('memory_lane_title', { values: { title: $getAltText(memory.assets[0]) } })}
               draggable="false"
             />
-            <p class="absolute bottom-2 left-4 z-10 text-lg text-white">
+            <p class="absolute bottom-2 left-4 z-10 text-lg text-white whitespace-pre-wrap whitespace-normal max-w-[90%]">
               {$memoryLaneTitle(memory)}
             </p>
             <div

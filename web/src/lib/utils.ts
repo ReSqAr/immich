@@ -372,7 +372,7 @@ function generateTitle(memorylane: MemorylaneResponseDto): string {
         metadata.startDate && metadata.endDate ? formatDateRange(metadata.startDate, metadata.endDate) : '';
 
       if (locationStr && dateStr) {
-        return `${locationStr} - ${dateStr}`;
+        return `${dateStr}\n${locationStr}`;
       } else if (locationStr) {
         return locationStr;
       } else if (dateStr) {
