@@ -283,7 +283,7 @@
       {#snippet leading()}
         {#if current}
           <p class="text-lg">
-            {$memoryLaneTitle(current.memory.type, current.memory.metadata)}
+            {$memoryLaneTitle(current.memory)}
           </p>
         {/if}
       {/snippet}

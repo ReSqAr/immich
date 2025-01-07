@@ -15,6 +15,11 @@ import {
   getUserProfileImagePath,
   JobName,
   linkOAuthAccount,
+  type MemorlaneClusterMetadata,
+  type MemorlanePersonMetadata,
+  type MemorlaneSimilarityMetadata,
+  type MemorlaneYearMetadata,
+  type MemorylaneResponseDto,
   MemorylaneType,
   type PersonResponseDto,
   type SharedLinkResponseDto,
@@ -354,30 +359,14 @@ function formatDateRange(startDate: string, endDate: string) {
   return `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} - ${end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
 }
 
-function generateTitle(type: MemorylaneType, metadata: any): string {
-  // TODO: fix any
-  if (!metadata) {
+function generateTitle(memorylane: MemorylaneResponseDto): string {
+  if (!memorylane.type) {
     return 'Unknown';
   }
 
-  switch (type) {
-    case MemorylaneType.Similarity: {
-      return metadata.category || 'Similar Photos';
-    }
-
-    case MemorylaneType.Person: {
-      return `Spotlight on ${metadata.personName}`;
-    }
-
-    case MemorylaneType.Year: {
-      return `Spotlight on ${metadata.year}`;
-    }
-
-    case MemorylaneType.RecentHighlights: {
-      return 'Recent Highlights';
-    }
-
+  switch (memorylane.type) {
     case MemorylaneType.Cluster: {
+      const metadata = memorylane.metadata as MemorlaneClusterMetadata;
       const locationStr = metadata.locations ? formatLocationList(metadata.locations) : '';
       const dateStr =
         metadata.startDate && metadata.endDate ? formatDateRange(metadata.startDate, metadata.endDate) : '';
@@ -392,6 +381,25 @@ function generateTitle(type: MemorylaneType, metadata: any): string {
       return 'Photo Cluster';
     }
 
+    case MemorylaneType.Person: {
+      const metadata = memorylane.metadata as MemorlanePersonMetadata;
+      return `Spotlight on ${metadata.personName}`;
+    }
+
+    case MemorylaneType.RecentHighlights: {
+      return 'Recent Highlights';
+    }
+
+    case MemorylaneType.Similarity: {
+      const metadata = memorylane.metadata as MemorlaneSimilarityMetadata;
+      return metadata.category || 'Similar Photos';
+    }
+
+    case MemorylaneType.Year: {
+      const metadata = memorylane.metadata as MemorlaneYearMetadata;
+      return `Spotlight on ${metadata.year}`;
+    }
+
     default: {
       return 'Photo Collection';
     }
@@ -399,7 +407,7 @@ function generateTitle(type: MemorylaneType, metadata: any): string {
 }
 
 export const memoryLaneTitle = derived(t, ($t) => {
-  return (type: MemorylaneType, metadata: any) => generateTitle(type, metadata);
+  return (memorylane: MemorylaneResponseDto) => generateTitle(memorylane);
 });
 
 export const withError = async <T>(fn: () => Promise<T>): Promise<[undefined, T] | [unknown, undefined]> => {
