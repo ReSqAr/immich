@@ -14,24 +14,26 @@
   let shouldRender = $derived($memoryStore?.length > 0);
 
   onMount(async () => {
-    onMount(async () => {
-      const localTime = new Date();
-      const formattedTime = localTime
-        .toLocaleString('en-US', {
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false,
-        })
-        .replace(',', '');
-      const requests = Array.from({ length: 5 }, (_, i) => ({
-        id: `${formattedTime} #${i}`,
-        limit: 12,
-      }));
-      $memoryStore = await getMemoryLanes({ memorylanesBodyDto: { requests } });
-    });
+    if (!$memoryStore) {
+      onMount(async () => {
+        const localTime = new Date();
+        const formattedTime = localTime
+          .toLocaleString('en-US', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+          })
+          .replace(',', '');
+        const requests = Array.from({ length: 5 }, (_, i) => ({
+          id: `${formattedTime} #${i}`,
+          limit: 12,
+        }));
+        $memoryStore = await getMemoryLanes({ memorylanesBodyDto: { requests } });
+      });
+    }
   });
 
   let memoryLaneElement: HTMLElement | undefined = $state();
