@@ -437,7 +437,7 @@
 
             <div class="absolute left-8 top-4 text-sm font-medium text-white">
               <p>
-                {fromLocalDateTime(current.memory.assets[0].localDateTime).toLocaleString(DateTime.DATE_FULL)}
+                {fromLocalDateTime(current.asset.localDateTime).toLocaleString(DateTime.DATE_FULL)}
               </p>
               <p>
                 {current.asset.exifInfo?.city || ''}
