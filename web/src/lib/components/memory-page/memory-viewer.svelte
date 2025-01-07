@@ -374,10 +374,14 @@
               <div class="absolute bottom-4 right-4 text-left text-white">
                 <p class="text-xs font-semibold text-gray-200">{$t('previous').toUpperCase()}</p>
                 <p class="text-xl whitespace-normal">
-                  <span class="text-sm">
-                    {$memoryLaneSubtitle(current.previousMemory)}
-                  </span>
-                  <br />{$memoryLaneTitle(current.previousMemory)}
+                  {#if $memoryLaneSubtitle(current.previousMemory)}
+                    <span class="text-sm">
+                      {$memoryLaneSubtitle(current.previousMemory)}
+                    </span>
+                    <br />{$memoryLaneTitle(current.previousMemory)}
+                  {:else}
+                    {$memoryLaneTitle(current.previousMemory)}
+                  {/if}
                 </p>
               </div>
             {/if}
@@ -476,9 +480,14 @@
               <div class="absolute bottom-4 left-4 text-left text-white">
                 <p class="text-xs font-semibold text-gray-200">{$t('up_next').toUpperCase()}</p>
                 <p class="text-xl whitespace-normal">
-                  <span class="text-sm">
-                    {$memoryLaneSubtitle(current.nextMemory)}
-                  </span><br />{$memoryLaneTitle(current.nextMemory)}
+                  {#if $memoryLaneSubtitle(current.nextMemory)}
+                    <span class="text-sm">
+                      {$memoryLaneSubtitle(current.nextMemory)}
+                    </span>
+                    <br />{$memoryLaneTitle(current.nextMemory)}
+                  {:else}
+                    {$memoryLaneTitle(current.nextMemory)}
+                  {/if}
                 </p>
               </div>
             {/if}
