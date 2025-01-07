@@ -100,10 +100,14 @@
               draggable="false"
             />
             <p class="absolute bottom-2 left-4 z-10 text-lg text-white whitespace-normal max-w-[90%]">
-              <span class="text-sm">
-                {$memoryLaneSubtitle(memory)}
-              </span>
-              <br />{$memoryLaneTitle(memory)}
+              {#if $memoryLaneSubtitle(memory)}
+                <span class="text-sm">
+                  {$memoryLaneSubtitle(memory)}
+                </span>
+                <br />{$memoryLaneTitle(memory)}
+              {:else}
+                {$memoryLaneTitle(memory)}
+              {/if}
             </p>
             <div
               class="absolute left-0 top-0 z-0 h-full w-full rounded-xl bg-gradient-to-t from-black/40 via-transparent to-transparent transition-all hover:bg-black/20"
