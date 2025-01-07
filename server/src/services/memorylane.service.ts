@@ -334,6 +334,7 @@ export class MemorylaneService extends BaseService {
           effectiveLimit,
         );
         return {
+          id: id,
           type: MemorylaneType.CLUSTER,
           metadata: { clusterID, locations, startDate, endDate } as MemorlaneClusterMetadata,
           assets: await this.loadAssetIds(assetIds),
@@ -342,6 +343,7 @@ export class MemorylaneService extends BaseService {
       case MemorylaneType.PERSON: {
         const { assetIds, personName } = await this.memorylaneRepository.person(userIds, seed, effectiveLimit);
         return {
+          id: id,
           type: MemorylaneType.PERSON,
           metadata: { personName } as MemorlanePersonMetadata,
           assets: await this.loadAssetIds(assetIds),
@@ -350,6 +352,7 @@ export class MemorylaneService extends BaseService {
       case MemorylaneType.RECENT_HIGHLIGHTS: {
         const { assetIds } = await this.memorylaneRepository.recentHighlight(userIds, seed, effectiveLimit);
         return {
+          id: id,
           type: MemorylaneType.RECENT_HIGHLIGHTS,
           metadata: {} as MemorlaneRecentHighlightsMetadata,
           assets: await this.loadAssetIds(assetIds),
@@ -358,6 +361,7 @@ export class MemorylaneService extends BaseService {
       case MemorylaneType.SIMILARITY: {
         const { assets, query } = await this.similarity(userIds, seed, effectiveLimit);
         return {
+          id: id,
           type: MemorylaneType.SIMILARITY,
           metadata: { category: capitalizeWords(query) } as MemorlaneSimilarityMetadata,
           assets,
@@ -366,6 +370,7 @@ export class MemorylaneService extends BaseService {
       case MemorylaneType.YEAR: {
         const { assetIds, year } = await this.memorylaneRepository.year(userIds, seed, effectiveLimit);
         return {
+          id: id,
           type: MemorylaneType.YEAR,
           metadata: { year } as MemorlaneYearMetadata,
           assets: await this.loadAssetIds(assetIds),

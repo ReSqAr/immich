@@ -25,7 +25,13 @@
   import { locale } from '$lib/stores/preferences.store';
   import { getAssetThumbnailUrl, handlePromiseError, memoryLaneTitle } from '$lib/utils';
   import { fromLocalDateTime } from '$lib/utils/timeline-util';
-  import { AssetMediaSize, getMemoryLane2, type AssetResponseDto, type MemorylaneResponseDto } from '@immich/sdk';
+  import {
+    AssetMediaSize,
+    getMemoryLane2,
+    type AssetResponseDto,
+    type MemorylaneResponseDto,
+    getMemoryLanes,
+  } from '@immich/sdk';
   import {
     mdiChevronDown,
     mdiChevronLeft,
@@ -201,12 +207,11 @@
           })
           .replace(',', '');
 
-        const promises = Array.from({ length: 5 }, (_, i) => {
-          const id = `${formattedTime} #${i}`;
-          return getMemoryLane2({ id, limit: 12 });
-        });
-
-        $memoryStore = await Promise.all(promises);
+        const requests = Array.from({ length: 5 }, (_, i) => ({
+          id: `${formattedTime} #${i}`,
+          limit: 12,
+        }));
+        $memoryStore = await getMemoryLanes({ memorylanesBodyDto: { requests } });
       });
     }
 

@@ -636,6 +636,14 @@ export type MemoryUpdateDto = {
     memoryAt?: string;
     seenAt?: string;
 };
+export type MemorylaneRequest = {
+    id: string;
+    limit?: number;
+    "type"?: MemorylaneType;
+};
+export type MemorylanesBodyDto = {
+    requests: MemorylaneRequest[];
+};
 export type MemorlaneClusterMetadata = {
     clusterID?: number;
     endDate?: string;
@@ -654,6 +662,7 @@ export type MemorlaneYearMetadata = {
 };
 export type MemorylaneResponseDto = {
     assets: AssetResponseDto[];
+    id: string;
     metadata: ({
         "type": "cluster";
     } & MemorlaneClusterMetadata) | ({
@@ -2281,6 +2290,18 @@ export function addMemoryAssets({ id, bulkIdsDto }: {
         ...opts,
         method: "PUT",
         body: bulkIdsDto
+    })));
+}
+export function getMemoryLanes({ memorylanesBodyDto }: {
+    memorylanesBodyDto: MemorylanesBodyDto;
+}, opts?: Oazapfts.RequestOpts) {
+    return oazapfts.ok(oazapfts.fetchJson<{
+        status: 201;
+        data: MemorylaneResponseDto[];
+    }>("/memorylane", oazapfts.json({
+        ...opts,
+        method: "POST",
+        body: memorylanesBodyDto
     })));
 }
 export function getMemoryLane2({ id, limit, $type }: {
