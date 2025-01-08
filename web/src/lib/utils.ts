@@ -401,7 +401,7 @@ function generateTitle(memorylane: MemorylaneResponseDto): string {
 
     case MemorylaneType.Person: {
       const metadata = memorylane.metadata as MemorlanePersonMetadata;
-      return `Spotlight on ${metadata.personName}`;
+      return metadata.personName ? `Spotlight on ${metadata.personName}` : 'Spotlight';
     }
 
     case MemorylaneType.RecentHighlights: {
