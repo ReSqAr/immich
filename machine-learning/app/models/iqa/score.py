@@ -18,7 +18,7 @@ class Scorer(InferenceModel):
         super().__init__(model_name,
                          model_format=ModelFormat.ONNX,
                          **model_kwargs)
-        self.size = 1024
+        self.size = 384
 
     @property
     def model_dir(self) -> Path:

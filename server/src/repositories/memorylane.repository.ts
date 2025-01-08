@@ -213,7 +213,7 @@ const clusterQuery = `
             SELECT
                 ad.id,
                 ad.ts,
-                (1 + COALESCE(ad.normalized_quality_score, 0)) AS weight
+                1 + ad.normalized_quality_score AS weight
             FROM asset_analysis ad
                  JOIN chosen_cluster cc ON ad.cluster_id = cc.cluster_id
             WHERE ad.normalized_quality_score >= 0
@@ -385,7 +385,7 @@ const recentHighlightsQuery = `
       SELECT
         INTERVAL '3 months' AS LOOKBACK_WINDOW,
         INTERVAL '6 HOURS'  AS MIN_TIME_BETWEEN_HIGHLIGHTS,
-        1.0                 AS MIN_QUALITY_SCORE,
+        0.0                 AS MIN_QUALITY_SCORE,
         $1::BIGINT          AS SEED,
         $2::INT             AS RESULT_LIMIT,
         $3::uuid[]          AS USER_IDS
@@ -395,7 +395,7 @@ const recentHighlightsQuery = `
       SELECT
         ad.id,
         ad.ts                       AS ts,
-        ad.normalized_quality_score AS weight
+        1 + ad.normalized_quality_score AS weight
       FROM asset_analysis AS ad
            CROSS JOIN CONSTANTS c
       WHERE ad.ts >= CURRENT_TIMESTAMP - c.LOOKBACK_WINDOW
@@ -494,7 +494,7 @@ const personQuery = `
                  JOIN asset_analysis aa ON af."assetId" = aa.id
                  CROSS JOIN CONSTANTS co
             WHERE p."ownerId" = ANY (co.USER_IDS)
-              AND aa.normalized_quality_score >= 1
+              AND COALESCE(aa.normalized_quality_score, 0) >= 0
             GROUP BY p.id, p.name, co.MIN_PICTURES_PER_PERSON
             HAVING COUNT(DISTINCT af.id) > co.MIN_PICTURES_PER_PERSON
         ),
@@ -536,11 +536,11 @@ const personQuery = `
             SELECT
                 aa.id,
                 aa.ts,
-                COALESCE(aa.normalized_quality_score, 1) AS weight
+                1 + COALESCE(aa.normalized_quality_score, 0) AS weight
             FROM asset_analysis aa
                  JOIN asset_faces af ON aa.id = af."assetId"
                  JOIN chosen_person cp ON af."personId" = cp.person_id
-            WHERE aa.normalized_quality_score >= 1
+            WHERE aa.normalized_quality_score >= 0
         ),
         w AS (
             SELECT
@@ -601,7 +601,7 @@ const personQuery = `
          CROSS JOIN CONSTANTS c
          CROSS JOIN chosen_person cp
     WHERE fc.row_number <= c.RESULT_LIMIT
-    ORDER BY fc.ts;
+    ORDER BY draw_number;
 `;
 
 const yearQuery = `
@@ -625,7 +625,7 @@ const yearQuery = `
         SQRT(COUNT(*))        AS weight
       FROM asset_analysis c
            CROSS JOIN CONSTANTS co
-      WHERE c.normalized_quality_score >= 1
+      WHERE c.normalized_quality_score >= 0
         AND c."ownerId" = ANY (co.USER_IDS)
       GROUP BY year, co.RESULT_LIMIT
       HAVING COUNT(*) > co.RESULT_LIMIT
@@ -678,10 +678,9 @@ const yearQuery = `
       SELECT
         ad.id,
         ad.ts,
-        (1 + COALESCE(ad.normalized_quality_score, 0)) AS weight
+        1 + COALESCE(ad.normalized_quality_score, 0) AS weight
       FROM asset_analysis ad
            JOIN chosen_year cc ON EXTRACT(YEAR FROM ad.ts) = cc.year
-      WHERE ad.normalized_quality_score >= 1
     ),
     w AS (
       /* Compute total_weight across these photos, plus their running total. */
