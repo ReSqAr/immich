@@ -263,27 +263,26 @@ const clusterQuery = `
                       ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
             ORDER BY draw_number
         ),
-        filtered_candidates AS (
-            /*
-               Discard any photo if it’s within 15 minutes of an already-chosen photo.
-               Then keep only the first RESULT_LIMIT picks.
-            */
+        candidates_with_prev AS (
             SELECT
                 a.draw_number,
-                ROW_NUMBER() OVER (ORDER BY a.draw_number) AS row_number,
                 a.id,
-                a.ts
+                a.ts,
+                LAG(a.ts) OVER (ORDER BY a.ts) AS prev_ts
             FROM candidates a
-                 CROSS JOIN CONSTANTS c
-            WHERE NOT EXISTS (
-                SELECT
-                    1
-                FROM candidates b
-                WHERE b.draw_number < a.draw_number
-                  AND a.ts - b.ts < c.MIN_TIME_BETWEEN_PHOTOS -- Minimum spacing check
-                  AND b.ts - a.ts < c.MIN_TIME_BETWEEN_PHOTOS -- Minimum spacing check
-            )
-            ORDER BY a.draw_number
+            CROSS JOIN CONSTANTS c
+        ),
+        filtered_candidates AS (
+            SELECT
+                sc.draw_number,
+                sc.id,
+                sc.ts,
+                ROW_NUMBER() OVER (ORDER BY sc.draw_number) AS row_number
+            FROM candidates_with_prev sc
+            CROSS JOIN CONSTANTS c
+            WHERE sc.prev_ts IS NULL
+               OR sc.ts - sc.prev_ts >= c.MIN_TIME_BETWEEN_PHOTOS
+            ORDER BY sc.draw_number
         )
 
 
@@ -308,7 +307,7 @@ const recentHighlightsQuery = `
     CONSTANTS AS (
       SELECT
         INTERVAL '3 months' AS LOOKBACK_WINDOW,
-        INTERVAL '6 HOURS'  AS MIN_TIME_BETWEEN_HIGHLIGHTS,
+        INTERVAL '6 HOURS'  AS MIN_TIME_BETWEEN_PHOTOS,
         0.0                 AS MIN_QUALITY_SCORE,
         $1::BIGINT          AS SEED,
         $2::INT             AS RESULT_LIMIT,
@@ -364,26 +363,28 @@ const recentHighlightsQuery = `
                 ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
       ORDER BY draw_number
     ),
-    filtered_candidates AS (
-      SELECT
-        draw_number,
-        ROW_NUMBER() OVER (ORDER BY draw_number) AS row_number,
-        id,
-        ts,
-        weight
-      FROM candidates a
-           CROSS JOIN CONSTANTS c
-      WHERE NOT EXISTS (
-        -- Look for ANY previously selected point that's too close
-        SELECT
-          1
-        FROM candidates b
-        WHERE b.draw_number < a.draw_number               -- Only check previous points
-          AND a.ts - b.ts < c.MIN_TIME_BETWEEN_HIGHLIGHTS -- Minimum spacing check
-          AND b.ts - a.ts < c.MIN_TIME_BETWEEN_HIGHLIGHTS -- Minimum spacing check
+      candidates_with_prev AS (
+          SELECT
+              a.draw_number,
+              a.id,
+              a.ts,
+              LAG(a.ts) OVER (ORDER BY a.ts) AS prev_ts
+          FROM candidates a
+          CROSS JOIN CONSTANTS c
+      ),
+      filtered_candidates AS (
+          SELECT
+              sc.draw_number,
+              sc.id,
+              sc.ts,
+              ROW_NUMBER() OVER (ORDER BY sc.draw_number) AS row_number
+          FROM candidates_with_prev sc
+          CROSS JOIN CONSTANTS c
+          WHERE sc.prev_ts IS NULL
+             OR sc.ts - sc.prev_ts >= c.MIN_TIME_BETWEEN_PHOTOS
+          ORDER BY sc.draw_number
       )
-      ORDER BY draw_number
-    )
+
   SELECT
     id
   FROM filtered_candidates
@@ -496,24 +497,28 @@ const personQuery = `
                       ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
             ORDER BY draw_number    
         ),
-        filtered_candidates AS (
+        candidates_with_prev AS (
             SELECT
                 a.draw_number,
-                ROW_NUMBER() OVER (ORDER BY a.draw_number) AS row_number,
                 a.id,
-                a.ts
+                a.ts,
+                LAG(a.ts) OVER (ORDER BY a.ts) AS prev_ts
             FROM candidates a
-                 CROSS JOIN CONSTANTS c
-            WHERE NOT EXISTS (
-                SELECT
-                    1
-                FROM candidates b
-                WHERE b.draw_number < a.draw_number
-                  AND a.ts - b.ts < c.MIN_TIME_BETWEEN_PHOTOS
-                  AND b.ts - a.ts < c.MIN_TIME_BETWEEN_PHOTOS
-            )
-            ORDER BY draw_number
+            CROSS JOIN CONSTANTS c
+        ),
+        filtered_candidates AS (
+            SELECT
+                sc.draw_number,
+                sc.id,
+                sc.ts,
+                ROW_NUMBER() OVER (ORDER BY sc.draw_number) AS row_number
+            FROM candidates_with_prev sc
+            CROSS JOIN CONSTANTS c
+            WHERE sc.prev_ts IS NULL
+               OR sc.ts - sc.prev_ts >= c.MIN_TIME_BETWEEN_PHOTOS
+            ORDER BY sc.draw_number
         )
+
 
 /* ---------------------------------------------------------------------------
    Final selection: Return chosen photos and person name
