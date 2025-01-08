@@ -424,6 +424,38 @@ function generateTitle(memorylane: MemorylaneResponseDto): string {
   }
 }
 
+export function memoryLaneID(memorylane: MemorylaneResponseDto) {
+  switch (memorylane.type) {
+    case MemorylaneType.Cluster: {
+      const metadata = memorylane.metadata as MemorlaneClusterMetadata;
+      return `cluster-${metadata.clusterID}`;
+    }
+
+    case MemorylaneType.Person: {
+      const metadata = memorylane.metadata as MemorlanePersonMetadata;
+      return `person-${metadata.personName}`;
+    }
+
+    case MemorylaneType.RecentHighlights: {
+      return 'recent-highlights';
+    }
+
+    case MemorylaneType.Similarity: {
+      const metadata = memorylane.metadata as MemorlaneSimilarityMetadata;
+      return `similarity-${metadata.category}`;
+    }
+
+    case MemorylaneType.Year: {
+      const metadata = memorylane.metadata as MemorlaneYearMetadata;
+      return `year-${metadata.year}`;
+    }
+
+    default: {
+      return 'unknown';
+    }
+  }
+}
+
 export const memoryLaneSubtitle = derived(t, ($t) => {
   return (memorylane: MemorylaneResponseDto) => generateSubtitle(memorylane);
 });

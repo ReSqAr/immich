@@ -3,7 +3,7 @@
   import Icon from '$lib/components/elements/icon.svelte';
   import { AppRoute, QueryParameter } from '$lib/constants';
   import { memoryStore } from '$lib/stores/memory.store';
-  import { getAssetThumbnailUrl, memoryLaneSubtitle, memoryLaneTitle } from '$lib/utils';
+  import { getAssetThumbnailUrl, memoryLaneID, memoryLaneSubtitle, memoryLaneTitle } from '$lib/utils';
   import { getAltText } from '$lib/utils/thumbnail-util';
   import { getMemoryLanes } from '@immich/sdk';
   import { mdiChevronLeft, mdiChevronRight } from '@mdi/js';
@@ -14,7 +14,7 @@
   let shouldRender = $derived($memoryStore?.length > 0);
 
   onMount(async () => {
-    if (!$memoryStore) {
+    if (!$memoryStore || $memoryStore.length == 0) {
       onMount(async () => {
         const localTime = new Date();
         const formattedTime = localTime
@@ -31,7 +31,18 @@
           id: `${formattedTime} #${i}`,
           limit: 12,
         }));
-        $memoryStore = await getMemoryLanes({ memorylanesBodyDto: { requests } });
+        await Promise.all(
+          requests.map(async (request) => {
+            const response = await getMemoryLanes({ memorylanesBodyDto: { requests: [request] } });
+            memoryStore.update((store) => {
+              const newMemories = response.filter(
+                (newMemory) =>
+                  !store.some((existingMemory) => memoryLaneID(existingMemory) === memoryLaneID(newMemory)),
+              );
+              return [...store, ...newMemories];
+            });
+          }),
+        );
       });
     }
   });
@@ -89,7 +100,7 @@
       </div>
     {/if}
     <div class="inline-block" use:resizeObserver={({ width }) => (innerWidth = width)}>
-      {#each $memoryStore as memory (memory.id)}
+      {#each $memoryStore as memory (memoryLaneID(memory))}
         {#if memory.assets.length > 0}
           <a
             class="memory-card relative mr-8 inline-block aspect-video h-[215px] rounded-xl"

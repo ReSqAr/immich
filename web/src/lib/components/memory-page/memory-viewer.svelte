@@ -23,7 +23,13 @@
   import { type Viewport } from '$lib/stores/assets.store';
   import { memoryStore } from '$lib/stores/memory.store';
   import { locale } from '$lib/stores/preferences.store';
-  import { getAssetThumbnailUrl, handlePromiseError, memoryLaneTitle, memoryLaneSubtitle } from '$lib/utils';
+  import {
+    getAssetThumbnailUrl,
+    handlePromiseError,
+    memoryLaneTitle,
+    memoryLaneSubtitle,
+    memoryLaneID,
+  } from '$lib/utils';
   import { fromLocalDateTime } from '$lib/utils/timeline-util';
   import { AssetMediaSize, type AssetResponseDto, type MemorylaneResponseDto, getMemoryLanes } from '@immich/sdk';
   import {
@@ -187,7 +193,7 @@
   };
 
   onMount(async () => {
-    if (!$memoryStore) {
+    if (!$memoryStore || $memoryStore.length == 0) {
       onMount(async () => {
         const localTime = new Date();
         const formattedTime = localTime
@@ -205,7 +211,18 @@
           id: `${formattedTime} #${i}`,
           limit: 12,
         }));
-        $memoryStore = await getMemoryLanes({ memorylanesBodyDto: { requests } });
+        await Promise.all(
+          requests.map(async (request) => {
+            const response = await getMemoryLanes({ memorylanesBodyDto: { requests: [request] } });
+            memoryStore.update((store) => {
+              const newMemories = response.filter(
+                (newMemory) =>
+                  !store.some((existingMemory) => memoryLaneID(existingMemory) === memoryLaneID(newMemory)),
+              );
+              return [...store, ...newMemories];
+            });
+          }),
+        );
       });
     }
 
