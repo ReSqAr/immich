@@ -80,24 +80,24 @@ export class MemorylaneRepository implements IMemorylaneRepository {
     const result = await this.assetRepository.query(clusterQuery, [seed, limit, userIds]);
     const assetIds: string[] = result.map(({ id }: { id: string }) => id);
 
-    if (result && result.length > 0) {
-      const {
-        cluster_id: clusterID,
-        cluster_start: startDate,
-        cluster_end: endDate,
-        cluster_location_stats: locationStats,
-      } = result[0];
-
-      return {
-        clusterID,
-        locations: extractLocations(locationStats),
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
-        assetIds,
-      };
+    if (!result || result.length == 0) {
+      return {clusterID: undefined, locations: [], startDate: undefined, endDate: undefined, assetIds};
     }
 
-    return { clusterID: undefined, locations: [], startDate: undefined, endDate: undefined, assetIds };
+    const {
+      cluster_id: clusterID,
+      cluster_start: startDate,
+      cluster_end: endDate,
+      cluster_location_stats: locationStats,
+    } = result[0];
+
+    return {
+      clusterID,
+      locations: extractLocations(locationStats),
+      startDate: new Date(startDate),
+      endDate: new Date(endDate),
+      assetIds,
+    };
   }
 
   async person(userIds: string[], seed: number, limit: number): Promise<MemoryLanePerson> {
@@ -152,6 +152,11 @@ const clusterQuery = `
                 c.cluster_id                           AS cluster_id,
                 c.cluster_start                        AS cluster_start,
                 c.cluster_end                          AS cluster_end,
+                JSONB_BUILD_OBJECT(
+                    'cities', c.cities,
+                    'states', c.states,
+                    'countries', c.countries
+                ) AS cluster_location_distribution,
                 SQRT(c.cluster_cardinality_score_ge_0) AS weight
             FROM asset_dbscan_clusters c
                  CROSS JOIN CONSTANTS co
@@ -165,6 +170,7 @@ const clusterQuery = `
                 cd.cluster_id,
                 cd.cluster_start,
                 cd.cluster_end,
+                cd.cluster_location_distribution,
                 cd.weight,
                 SUM(cd.weight) OVER ()                       AS total_weight,
                 SUM(cd.weight) OVER (ORDER BY cd.cluster_id) AS right_cumulative
@@ -176,6 +182,7 @@ const clusterQuery = `
                 cw.cluster_id,
                 cw.cluster_start,
                 cw.cluster_end,
+                cw.cluster_location_distribution,
                 cw.weight,
                 cw.total_weight,
                 cw.right_cumulative,
@@ -193,7 +200,8 @@ const clusterQuery = `
             SELECT
                 cw2.cluster_id,
                 cw2.cluster_start,
-                cw2.cluster_end
+                cw2.cluster_end,
+                cw2.cluster_location_distribution
             FROM cluster_w2 cw2
                  CROSS JOIN CONSTANTS c
             WHERE (c.SEED % ROUND(1367 * cw2.total_weight)::BIGINT) BETWEEN 1367 * cw2.left_cumulative AND 1367 * cw2.right_cumulative
@@ -276,104 +284,20 @@ const clusterQuery = `
                   AND b.ts - a.ts < c.MIN_TIME_BETWEEN_PHOTOS -- Minimum spacing check
             )
             ORDER BY a.draw_number
-        ),
-
-        location_stats AS (
-            /* Get all assets in the selected cluster, before quality filtering */
-            SELECT
-                e.city,
-                e.state,
-                e.country
-            FROM asset_analysis ad
-                 JOIN chosen_cluster cc ON ad.cluster_id = cc.cluster_id
-                 LEFT JOIN exif e ON ad.id = e."assetId"
-        ),
-        location_counts AS (
-            WITH
-                total_stats AS (
-                    SELECT
-                        COUNT(*) AS total_count
-                    FROM location_stats
-                ),
-                city_total AS (
-                    SELECT
-                        COUNT(*) AS total_count
-                    FROM location_stats
-                    WHERE city IS NOT NULL
-                ),
-                city_stats AS (
-                    SELECT
-                        city,
-                        COUNT(*) AS count
-                    FROM location_stats
-                    WHERE city IS NOT NULL
-                    GROUP BY city
-                ),
-                state_total AS (
-                    SELECT
-                        COUNT(*) AS total_count
-                    FROM location_stats
-                    WHERE state IS NOT NULL
-                ),
-                state_stats AS (
-                    SELECT
-                        state,
-                        COUNT(*) AS count
-                    FROM location_stats
-                    WHERE state IS NOT NULL
-                    GROUP BY state
-                ),
-                country_total AS (
-                    SELECT
-                        COUNT(*) AS total_count
-                    FROM location_stats
-                    WHERE country IS NOT NULL
-                ),
-                country_stats AS (
-                    SELECT
-                        country,
-                        COUNT(*) AS count
-                    FROM location_stats
-                    WHERE country IS NOT NULL
-                    GROUP BY country
-                )
-            SELECT
-                total_stats.total_count AS total_assets,
-                JSONB_BUILD_OBJECT(
-                        'cities', (
-                    SELECT
-                        JSONB_OBJECT_AGG(city, (count::DECIMAL / city_total.total_count))
-                    FROM city_stats,
-                         city_total
-                ),
-                        'states', (
-                            SELECT
-                                JSONB_OBJECT_AGG(state, (count::DECIMAL / state_total.total_count))
-                            FROM state_stats,
-                                 state_total
-                        ),
-                        'countries', (
-                            SELECT
-                                JSONB_OBJECT_AGG(country, (count::DECIMAL / country_total.total_count))
-                            FROM country_stats,
-                                 country_total
-                        )
-                )                       AS location_distribution
-            FROM total_stats
         )
+
 
 /* ---------------------------------------------------------------------------
    Final selection: up to 12 photos, sorted by time
 --------------------------------------------------------------------------- */
     SELECT
         fc.id,
-        lc.location_distribution AS cluster_location_stats,
         cc.cluster_id,
         cc.cluster_start,
-        cc.cluster_end
+        cc.cluster_end,
+        cc.cluster_location_distribution
     FROM filtered_candidates fc
          CROSS JOIN CONSTANTS c
-         CROSS JOIN location_counts lc
          CROSS JOIN chosen_cluster cc
     WHERE fc.row_number <= c.RESULT_LIMIT
     ORDER BY fc.ts
