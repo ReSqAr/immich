@@ -22,7 +22,15 @@ function isLocationScattered(locations: Record<string, number>, threshold = 0.05
     return true;
   }
 
-  const frequencies = Object.values(locations).sort((a, b) => b - a);
+  const frequencies = Object.entries(locations)
+    .filter(([location]) => location !== 'unknown')
+    .map(([, freq]) => freq)
+    .sort((a, b) => b - a);
+
+  if (frequencies.length === 0) {
+    return true;
+  }
+
   const remainder = frequencies.slice(topN).reduce((sum, freq) => sum + freq, 0);
   return remainder > threshold;
 }
@@ -648,27 +656,26 @@ const yearQuery = `
               ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
         ORDER BY draw_number
     ),
-    filtered_candidates AS (
-      /*
-         Discard any photo if it’s within 15 minutes of an already-chosen photo.
-         Then keep only the first RESULT_LIMIT picks.
-      */
-      SELECT
-        a.draw_number,
-        ROW_NUMBER() OVER (ORDER BY a.draw_number) AS row_number,
-        a.id,
-        a.ts
-      FROM candidates a
-           CROSS JOIN CONSTANTS c
-      WHERE NOT EXISTS (
+    candidates_with_prev AS (
         SELECT
-          1
-        FROM candidates b
-        WHERE b.draw_number < a.draw_number
-          AND a.ts - b.ts < c.MIN_TIME_BETWEEN_PHOTOS -- Minimum spacing check
-          AND b.ts - a.ts < c.MIN_TIME_BETWEEN_PHOTOS -- Minimum spacing check
-      )
-      ORDER BY a.draw_number
+            a.draw_number,
+            a.id,
+            a.ts,
+            LAG(a.ts) OVER (ORDER BY a.ts) AS prev_ts
+        FROM candidates a
+        CROSS JOIN CONSTANTS c
+    ),
+    filtered_candidates AS (
+        SELECT
+            sc.draw_number,
+            sc.id,
+            sc.ts,
+            ROW_NUMBER() OVER (ORDER BY sc.draw_number) AS row_number
+        FROM candidates_with_prev sc
+        CROSS JOIN CONSTANTS c
+        WHERE sc.prev_ts IS NULL
+           OR sc.ts - sc.prev_ts >= c.MIN_TIME_BETWEEN_PHOTOS
+        ORDER BY sc.draw_number
     )
 
 /* ---------------------------------------------------------------------------
