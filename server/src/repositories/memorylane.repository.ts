@@ -29,7 +29,7 @@ function isLocationScattered(locations: Record<string, number>, threshold = 0.05
 
 function getTopLocations(locations: Record<string, number>, threshold = 0.05, topN = 2): string[] {
   return Object.entries(locations)
-    .filter(([location, freq]) => location && location.trim() && freq >= threshold)
+    .filter(([location, freq]) => location && location.trim() && location !== 'unknown' && freq >= threshold)
     .sort(([, freqA], [, freqB]) => freqB - freqA)
     .slice(0, topN)
     .map(([location]) => location);
@@ -88,12 +88,12 @@ export class MemorylaneRepository implements IMemorylaneRepository {
       cluster_id: clusterID,
       cluster_start: startDate,
       cluster_end: endDate,
-      cluster_location_stats: locationStats,
+      cluster_location_distribution: clusterLocationDistribution,
     } = result[0];
 
     return {
       clusterID,
-      locations: extractLocations(locationStats),
+      locations: extractLocations(clusterLocationDistribution),
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       assetIds,
