@@ -193,7 +193,7 @@
   };
 
   onMount(async () => {
-    if (!$memoryStore || $memoryStore.length == 0) {
+    if (!$memoryStore || $memoryStore.length === 0) {
       onMount(async () => {
         const localTime = new Date();
         const formattedTime = localTime
