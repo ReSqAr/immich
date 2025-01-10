@@ -33,7 +33,6 @@ class Settings(BaseSettings):
     )
 
     cache_folder: Path = Path("/cache")
-    models_path: Path = Path("/models")
     model_ttl: int = 300
     model_ttl_poll_s: int = 10
     host: str = "0.0.0.0"

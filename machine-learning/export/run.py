@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 
 import torch
-from huggingface_hub import create_repo, upload_folder
+from huggingface_hub import create_repo, login, upload_folder, whoami
 
 from models import mclip, openclip, arniqa
 from models.optimize import optimize
@@ -77,10 +77,21 @@ uuid_glob = uuid_char * 8 + "-" + uuid_char * 4 + "-" + uuid_char * 4 + "-" + uu
 delete_patterns = ["**/*onnx*", "**/Constant*", "**/*.weight", "**/*.bias", f"**/{uuid_glob}"]
 
 export_folder = os.environ.get("EXPORT_FOLDER")
+hf_project = os.environ.get("HF_PROJECT") or "immich-app"
+token = os.environ["HUGGINGFACE_TOKEN"]
+
+if token is not None:
+    login(token=token)
+    try:
+        user_info = whoami()
+        print(f"Logged in as: {user_info['name']}")
+        print("Token capabilities:", user_info['auth'])
+    except Exception as e:
+        print(f"Failed to validate token: {e}")
+        raise
 
 with Progress() as progress:
     task = progress.add_task("[green]Exporting models...", total=len(models))
-    token = os.environ.get("HF_AUTH_TOKEN")
     torch.backends.mha.set_fastpath_enabled(False)
     with TemporaryDirectory() as tmp:
         tmpdir = Path(tmp)
@@ -88,7 +99,6 @@ with Progress() as progress:
             model_name = model.split("/")[-1].replace("::", "__")
             hf_model_name = model_name.replace("xlm-roberta-large", "XLM-Roberta-Large")
             model_name = model_name.replace("xlm-roberta-base", "XLM-Roberta-Base")
-            config_path = tmpdir / model_name / "config.json"
 
             def export_clip() -> None:
                 progress.update(task, description=f"[green]Exporting {hf_model_name}")
@@ -118,9 +128,13 @@ with Progress() as progress:
 
             def upload() -> None:
                 progress.update(task, description=f"[yellow]Uploading {hf_model_name}")
-                repo_id = f"immich-app/{hf_model_name}"
+                repo_id = f"{hf_project}/{hf_model_name}"
 
-                create_repo(repo_id, exist_ok=True)
+                try:
+                    create_repo(repo_id, exist_ok=True)
+                except Exception:
+                    pass
+
                 upload_folder(
                     repo_id=repo_id,
                     folder_path=tmpdir / hf_model_name,

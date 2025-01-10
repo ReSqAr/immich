@@ -35,7 +35,8 @@ class ARNIQAWrapper(torch.nn.Module):
 
 
 def to_onnx(model_name: str, output_dir: Path| str) -> Path:
-    output_dir = Path(output_dir)
+    output_dir = Path(output_dir) / "score"
+    output_dir.mkdir(exist_ok=True, parents=True)
     output_path = get_model_path(output_dir)
 
     arniqa, regressor_dataset = model_name.split("-", 1)

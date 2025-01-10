@@ -29,6 +29,7 @@ class InferenceModel(ABC):
     ) -> None:
         self.loaded = session is not None
         self.load_attempts = 0
+        self.project_name = "immich-app"
         self.model_name = clean_name(model_name)
         self.cache_dir = Path(cache_dir) if cache_dir is not None else self._cache_dir_default
         self.model_format = model_format if model_format is not None else self._model_format_default
@@ -68,7 +69,7 @@ class InferenceModel(ABC):
     def _download(self) -> None:
         ignore_patterns = [] if self.model_format == ModelFormat.ARMNN else ["*.armnn"]
         snapshot_download(
-            f"immich-app/{clean_name(self.model_name)}",
+            f"{self.project_name}/{self.model_name}",
             cache_dir=self.cache_dir,
             local_dir=self.cache_dir,
             ignore_patterns=ignore_patterns,

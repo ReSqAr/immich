@@ -102,9 +102,6 @@ RUN echo "hard core 0" >> /etc/security/limits.conf && \
     echo "fs.suid_dumpable 0" >> /etc/sysctl.conf && \
     echo 'ulimit -S -c 0 > /dev/null 2>&1' >> /etc/profile
 
-COPY ./export/export /models
-ENV MACHINE_LEARNING_MODELS_PATH=/models
-
 COPY --from=builder /opt/venv /opt/venv
 COPY ann/ann.py /usr/src/ann/ann.py
 COPY start.sh log_conf.json gunicorn_conf.py ./
