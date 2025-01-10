@@ -375,7 +375,10 @@ function generateSubtitle(memorylane: MemorylaneResponseDto): string {
   switch (memorylane.type) {
     case MemorylaneType.Cluster: {
       const metadata = memorylane.metadata as MemorlaneClusterMetadata;
-      return metadata.startDate && metadata.endDate ? formatDateRange(metadata.startDate, metadata.endDate) : '';
+      const hasLocations = metadata.locations?.length;
+      return hasLocations && metadata.startDate && metadata.endDate
+        ? formatDateRange(metadata.startDate, metadata.endDate)
+        : '';
     }
 
     default: {
@@ -391,10 +394,11 @@ function generateTitle(memorylane: MemorylaneResponseDto): string {
   switch (memorylane.type) {
     case MemorylaneType.Cluster: {
       const metadata = memorylane.metadata as MemorlaneClusterMetadata;
-      const locationStr = metadata.locations ? formatLocationList(metadata.locations) : '';
-
-      if (locationStr) {
-        return locationStr;
+      if (metadata.locations?.length) {
+        return formatLocationList(metadata.locations);
+      }
+      if (metadata.startDate && metadata.endDate) {
+        return formatDateRange(metadata.startDate, metadata.endDate);
       }
       return 'Photo Cluster';
     }
