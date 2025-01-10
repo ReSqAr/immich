@@ -12,6 +12,7 @@ export const featureFlags = writable<FeatureFlags>({
   importFaces: false,
   sidecar: true,
   map: true,
+  memorylane: true,
   reverseGeocoding: true,
   search: true,
   oauth: false,

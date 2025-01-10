@@ -7,6 +7,7 @@
   import CircleIconButton from '$lib/components/elements/buttons/circle-icon-button.svelte';
   import AddToAlbum from '$lib/components/photos-page/actions/add-to-album.svelte';
   import ArchiveAction from '$lib/components/photos-page/actions/archive-action.svelte';
+  import { featureFlags } from '$lib/stores/server-config.store';
   import ChangeDate from '$lib/components/photos-page/actions/change-date-action.svelte';
   import ChangeLocation from '$lib/components/photos-page/actions/change-location-action.svelte';
   import CreateSharedLink from '$lib/components/photos-page/actions/create-shared-link.svelte';
@@ -193,7 +194,7 @@
   };
 
   onMount(async () => {
-    if (!$memoryStore || $memoryStore.length === 0) {
+    if ((!$memoryStore || $memoryStore.length === 0) && $featureFlags.memorylane) {
       onMount(async () => {
         const localTime = new Date();
         const formattedTime = localTime
@@ -294,7 +295,7 @@
 {/if}
 
 <section id="memory-viewer" class="w-full bg-immich-dark-gray" bind:this={memoryWrapper}>
-  {#if current && current.memory.assets.length > 0}
+  {#if current && current.memory.assets.length > 0 && $featureFlags.memorylane}
     <ControlAppBar onClose={() => goto(AppRoute.PHOTOS)} forceDark>
       {#snippet leading()}
         {#if current}

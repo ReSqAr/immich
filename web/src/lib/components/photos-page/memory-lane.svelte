@@ -2,6 +2,7 @@
   import { resizeObserver } from '$lib/actions/resize-observer';
   import Icon from '$lib/components/elements/icon.svelte';
   import { AppRoute, QueryParameter } from '$lib/constants';
+  import { featureFlags } from '$lib/stores/server-config.store';
   import { memoryStore } from '$lib/stores/memory.store';
   import { getAssetThumbnailUrl, memoryLaneID, memoryLaneSubtitle, memoryLaneTitle } from '$lib/utils';
   import { getAltText } from '$lib/utils/thumbnail-util';
@@ -14,7 +15,7 @@
   let shouldRender = $derived($memoryStore?.length > 0);
 
   onMount(async () => {
-    if (!$memoryStore || $memoryStore.length === 0) {
+    if ((!$memoryStore || $memoryStore.length === 0) && $featureFlags.memorylane) {
       onMount(async () => {
         const localTime = new Date();
         const formattedTime = localTime

@@ -10081,10 +10081,10 @@
       },
       "MemorylaneType": {
         "enum": [
-          "recent_highlights",
           "cluster",
-          "similarity",
           "person",
+          "recent_highlights",
+          "similarity",
           "year"
         ],
         "type": "string"
@@ -11217,6 +11217,9 @@
           "map": {
             "type": "boolean"
           },
+          "memorylane": {
+            "type": "boolean"
+          },
           "oauth": {
             "type": "boolean"
           },
@@ -11252,6 +11255,7 @@
           "facialRecognition",
           "importFaces",
           "map",
+          "memorylane",
           "oauth",
           "oauthAutoLaunch",
           "passwordLogin",
@@ -11868,6 +11872,9 @@
           "map": {
             "$ref": "#/components/schemas/SystemConfigMapDto"
           },
+          "memorylane": {
+            "$ref": "#/components/schemas/SystemConfigMemorylaneDto"
+          },
           "metadata": {
             "$ref": "#/components/schemas/SystemConfigMetadataDto"
           },
@@ -11914,6 +11921,7 @@
           "logging",
           "machineLearning",
           "map",
+          "memorylane",
           "metadata",
           "newVersionCheck",
           "notifications",
@@ -12264,6 +12272,48 @@
           "darkStyle",
           "enabled",
           "lightStyle"
+        ],
+        "type": "object"
+      },
+      "SystemConfigMemorylaneDto": {
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "weights": {
+            "$ref": "#/components/schemas/SystemConfigMemorylaneWeightsDto"
+          }
+        },
+        "required": [
+          "enabled",
+          "weights"
+        ],
+        "type": "object"
+      },
+      "SystemConfigMemorylaneWeightsDto": {
+        "properties": {
+          "cluster": {
+            "type": "number"
+          },
+          "person": {
+            "type": "number"
+          },
+          "recent_highlights": {
+            "type": "number"
+          },
+          "similarity": {
+            "type": "number"
+          },
+          "year": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "cluster",
+          "person",
+          "recent_highlights",
+          "similarity",
+          "year"
         ],
         "type": "object"
       },

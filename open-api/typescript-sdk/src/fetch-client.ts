@@ -988,6 +988,7 @@ export type ServerFeaturesDto = {
     facialRecognition: boolean;
     importFaces: boolean;
     map: boolean;
+    memorylane: boolean;
     oauth: boolean;
     oauthAutoLaunch: boolean;
     passwordLogin: boolean;
@@ -1243,6 +1244,17 @@ export type SystemConfigMapDto = {
     enabled: boolean;
     lightStyle: string;
 };
+export type SystemConfigMemorylaneWeightsDto = {
+    cluster: number;
+    person: number;
+    recent_highlights: number;
+    similarity: number;
+    year: number;
+};
+export type SystemConfigMemorylaneDto = {
+    enabled: boolean;
+    weights: SystemConfigMemorylaneWeightsDto;
+};
 export type SystemConfigFacesDto = {
     "import": boolean;
 };
@@ -1315,6 +1327,7 @@ export type SystemConfigDto = {
     logging: SystemConfigLoggingDto;
     machineLearning: SystemConfigMachineLearningDto;
     map: SystemConfigMapDto;
+    memorylane: SystemConfigMemorylaneDto;
     metadata: SystemConfigMetadataDto;
     newVersionCheck: SystemConfigNewVersionCheckDto;
     notifications: SystemConfigNotificationsDto;
@@ -3582,10 +3595,10 @@ export enum MemoryType {
     OnThisDay = "on_this_day"
 }
 export enum MemorylaneType {
-    RecentHighlights = "recent_highlights",
     Cluster = "cluster",
-    Similarity = "similarity",
     Person = "person",
+    RecentHighlights = "recent_highlights",
+    Similarity = "similarity",
     Year = "year"
 }
 export enum PartnerDirection {

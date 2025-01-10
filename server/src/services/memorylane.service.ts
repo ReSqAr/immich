@@ -17,16 +17,8 @@ import { BaseService } from 'src/services/base.service';
 import { getMyPartnerIds } from 'src/utils/asset.util';
 import { isSmartSearchEnabled } from 'src/utils/misc';
 
-const LIMIT = 12;
+const DEFAULT_LIMIT = 12;
 const BINS = 1367;
-
-const MEMORYLANE_WEIGHTS = [
-  { item: MemorylaneType.RECENT_HIGHLIGHTS, weight: 0.1 },
-  { item: MemorylaneType.CLUSTER, weight: 0.6 },
-  { item: MemorylaneType.SIMILARITY, weight: 0.1 },
-  { item: MemorylaneType.PERSON, weight: 0.1 },
-  { item: MemorylaneType.YEAR, weight: 0.1 },
-];
 
 const CLIP_QUERIES = {
   nature: [
@@ -161,7 +153,7 @@ async function stringToSignedSHA32(str: string): Promise<number> {
   );
 }
 
-const MIN_TIME_BETWEEN_PHOTOS = 15 * 60 * 1000; // 15 minutes in milliseconds
+const MIN_TIME_BETWEEN_PHOTOS = 15 * 60 * 1000;
 
 interface WeightedItem<T> {
   item: T;
@@ -205,24 +197,22 @@ function capitalizeWords(str: string): string {
     .join(' ');
 }
 
-function randomMemorylaneType(seed: number) {
-  const weightedTypes = computeCumulativeWeights(MEMORYLANE_WEIGHTS, (item) => item.weight);
-
+function randomMemorylaneType(seed: number, memorylaneWeights: Record<MemorylaneType, number>) {
+  const weights = Object.entries(memorylaneWeights).map(([type, weight]) => ({item: type as MemorylaneType,weight}));
+  const weightedTypes = computeCumulativeWeights(weights, (item) => item.weight);
   return findItemForRandom(weightedTypes, seed)?.item || MemorylaneType.RECENT_HIGHLIGHTS;
 }
 
 export function selectRandomQuery(seed: number): string {
   const weightedQueries = computeCumulativeWeights(FLATTENED_QUERIES, (item) => item.weight);
-
   const selected = findItemForRandom(weightedQueries, seed);
-
   return selected?.query ?? 'beautiful photo';
 }
 
 /*
   This function is inspired by:
     https://stackoverflow.com/questions/664014/what-integer-hash-function-are-good-that-accepts-an-integer-hash-key
-  In tests this is good enough. An LCG was visibly not great.
+  In tests this is good enough.
  */
 function getRandom(seed: number, i: number) {
   const CONST: bigint = 73_244_475n;
@@ -231,22 +221,18 @@ function getRandom(seed: number, i: number) {
 }
 
 export function selectRandomPhotos(assets: AssetEntity[], seed: number, limit: number): AssetEntity[] {
-  // Compute weights (using equal weights for now, but could be modified to use quality scores)
   const weightedAssets = computeCumulativeWeights(assets, () => 1);
 
   const selected: AssetEntity[] = [];
 
-  // Generate 2 * limit candidates to ensure we have enough after filtering
   for (let i = 0; i < limit * 4 && selected.length < limit; i++) {
     const random = getRandom(seed, i);
 
-    // Select a candidate
     const candidate = findItemForRandom(weightedAssets, random);
     if (!candidate) {
       continue;
     }
 
-    // Check time spacing with already selected photos
     const isTooClose = selected.some((selectedPhoto) => {
       const timeDiff = Math.abs(candidate.localDateTime.getTime() - selectedPhoto.localDateTime.getTime());
       return timeDiff < MIN_TIME_BETWEEN_PHOTOS;
@@ -257,7 +243,6 @@ export function selectRandomPhotos(assets: AssetEntity[], seed: number, limit: n
     }
   }
 
-  // Sort final selection by time
   return selected;
 }
 
@@ -266,10 +251,8 @@ export class MemorylaneService extends BaseService {
   private async loadAssetIds(assetIds: string[]) {
     const assets = await this.assetRepository.getByIds(assetIds, { exifInfo: true, qualityAssessment: true });
 
-    // Create a map of assets by their IDs for efficient lookup
     const assetMap = new Map(assets.map((asset) => [asset.id, asset]));
 
-    // Map the assets in the original order using result.assetIds
     return assetIds
       .map((id) => assetMap.get(id))
       .filter((asset) => asset !== undefined)
@@ -298,8 +281,8 @@ export class MemorylaneService extends BaseService {
       machineLearning.clip,
     );
 
-    const { mean, stddev } = await this.qualityAssessmentRepository.scoreDistribution(userIds);
-    const minimumScore = mean + stddev;
+    const { mean } = await this.qualityAssessmentRepository.scoreDistribution(userIds);
+    const minimumScore = mean;
     const options = { userIds, embedding, withQualityAssessment: true, withExif: true, minimumScore };
     const result = await this.searchRepository.searchSmart(pagination, options);
     const selectedAssets = selectRandomPhotos(result.items, seed, limit);
@@ -316,13 +299,14 @@ export class MemorylaneService extends BaseService {
     id: string,
     limit: number | undefined,
   ): Promise<MemorylaneResponseDto> {
-    //??
+    // TODO
     //await this.requireAccess({auth, permission: Permission.MEMORY_READ, ids: [id]});
 
     const seed = await stringToSignedSHA32(id);
+    const effectiveLimit = limit || DEFAULT_LIMIT;
 
-    const effectiveLimit = limit || LIMIT;
-    const effectiveMemorylane = memorylane || randomMemorylaneType(seed);
+    const memorylaneWeights = await this.getConfig({ withCache: false }).then(value => value['memorylane']['weights'])
+    const effectiveMemorylane = memorylane || randomMemorylaneType(seed, memorylaneWeights);
 
     const userIds = await this.getUserIdsToSearch(auth);
 

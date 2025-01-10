@@ -64,10 +64,10 @@ export enum MemoryType {
 }
 
 export enum MemorylaneType {
-  RECENT_HIGHLIGHTS = 'recent_highlights',
   CLUSTER = 'cluster',
-  SIMILARITY = 'similarity',
   PERSON = 'person',
+  RECENT_HIGHLIGHTS = 'recent_highlights',
+  SIMILARITY = 'similarity',
   YEAR = 'year',
 }
 

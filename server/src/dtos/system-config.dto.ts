@@ -34,7 +34,7 @@ import {
   TranscodeHWAccel,
   TranscodePolicy,
   VideoCodec,
-  VideoContainer,
+  VideoContainer, MemorylaneType,
 } from 'src/enum';
 import { ConcurrentQueueName, QueueName } from 'src/interfaces/job.interface';
 import { IsCronExpression, ValidateBoolean } from 'src/validation';
@@ -422,6 +422,33 @@ class SystemConfigMetadataDto {
   faces!: SystemConfigFacesDto;
 }
 
+class SystemConfigMemorylaneWeightsDto implements Record<MemorylaneType, number> {
+  @IsNumber()
+  cluster!: number;
+
+  @IsNumber()
+  person!: number;
+
+  @IsNumber()
+  recent_highlights!: number;
+
+  @IsNumber()
+  similarity!: number;
+
+  @IsNumber()
+  year!: number;
+}
+
+class SystemConfigMemorylaneDto {
+  @ValidateBoolean()
+  enabled!: boolean;
+
+  @Type(() => SystemConfigMemorylaneWeightsDto)
+  @ValidateNested()
+  @IsObject()
+  weights!: SystemConfigMemorylaneWeightsDto;
+}
+
 class SystemConfigServerDto {
   @ValidateIf((_, value: string) => value !== '')
   @IsUrl({ require_tld: false, require_protocol: true, protocols: ['http', 'https'] })
@@ -634,6 +661,11 @@ export class SystemConfigDto implements SystemConfig {
   @ValidateNested()
   @IsObject()
   metadata!: SystemConfigMetadataDto;
+
+  @Type(() => SystemConfigMemorylaneDto)
+  @ValidateNested()
+  @IsObject()
+  memorylane!: SystemConfigMemorylaneDto;
 
   @Type(() => SystemConfigStorageTemplateDto)
   @ValidateNested()

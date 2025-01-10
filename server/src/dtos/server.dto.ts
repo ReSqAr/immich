@@ -156,6 +156,7 @@ export class ServerFeaturesDto {
   configFile!: boolean;
   facialRecognition!: boolean;
   map!: boolean;
+  memorylane!: boolean;
   trash!: boolean;
   reverseGeocoding!: boolean;
   importFaces!: boolean;

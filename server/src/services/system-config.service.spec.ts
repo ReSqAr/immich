@@ -5,7 +5,7 @@ import {
   Colorspace,
   CQMode,
   ImageFormat,
-  LogLevel,
+  LogLevel, MemorylaneType,
   ToneMapping,
   TranscodeHWAccel,
   TranscodePolicy,
@@ -91,10 +91,6 @@ const updatedConfig = Object.freeze<SystemConfig>({
       enabled: true,
       modelName: 'ViT-B-32__openai',
     },
-    iqa: {
-      enabled: true,
-      modelName: 'arniqa-kadid',
-    },
     duplicateDetection: {
       enabled: true,
       maxDistance: 0.01,
@@ -106,11 +102,25 @@ const updatedConfig = Object.freeze<SystemConfig>({
       maxDistance: 0.5,
       minFaces: 3,
     },
+    iqa: {
+      enabled: true,
+      modelName: 'arniqa-kadid',
+    },
   },
   map: {
     enabled: true,
     lightStyle: 'https://tiles.immich.cloud/v1/style/light.json',
     darkStyle: 'https://tiles.immich.cloud/v1/style/dark.json',
+  },
+  memorylane: {
+    enabled: true,
+    weights: {
+      [MemorylaneType.CLUSTER]: 0.6,
+      [MemorylaneType.PERSON]: 0.1,
+      [MemorylaneType.RECENT_HIGHLIGHTS]: 0.1,
+      [MemorylaneType.SIMILARITY]: 0.1,
+      [MemorylaneType.YEAR]: 0.1,
+    }
   },
   reverseGeocoding: {
     enabled: true,

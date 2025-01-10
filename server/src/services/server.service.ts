@@ -75,7 +75,7 @@ export class ServerService extends BaseService {
   }
 
   async getFeatures(): Promise<ServerFeaturesDto> {
-    const { reverseGeocoding, metadata, map, machineLearning, trash, oauth, passwordLogin, notifications } =
+    const { reverseGeocoding, metadata, map, machineLearning, trash, oauth, passwordLogin, notifications, memorylane } =
       await this.getConfig({ withCache: false });
     const { configFile } = this.configRepository.getEnv();
 
@@ -89,6 +89,7 @@ export class ServerService extends BaseService {
       sidecar: true,
       search: true,
       qualityAssessment: isQualityAssessmentEnabled(machineLearning),
+      memorylane: memorylane.enabled,
       trash: trash.enabled,
       oauth: oauth.enabled,
       oauthAutoLaunch: oauth.autoLaunch,

@@ -4,7 +4,7 @@ import {
   Colorspace,
   CQMode,
   ImageFormat,
-  LogLevel,
+  LogLevel, MemorylaneType,
   ToneMapping,
   TranscodeHWAccel,
   TranscodePolicy,
@@ -57,10 +57,6 @@ export interface SystemConfig {
       enabled: boolean;
       modelName: string;
     };
-    iqa: {
-      enabled: boolean;
-      modelName: string;
-    };
     duplicateDetection: {
       enabled: boolean;
       maxDistance: number;
@@ -71,6 +67,10 @@ export interface SystemConfig {
       minScore: number;
       minFaces: number;
       maxDistance: number;
+    };
+    iqa: {
+      enabled: boolean;
+      modelName: string;
     };
   };
   map: {
@@ -85,6 +85,10 @@ export interface SystemConfig {
     faces: {
       import: boolean;
     };
+  };
+  memorylane: {
+    enabled: boolean;
+    weights: Record<MemorylaneType, number>;
   };
   oauth: {
     autoLaunch: boolean;
@@ -223,10 +227,6 @@ export const defaults = Object.freeze<SystemConfig>({
       enabled: true,
       modelName: 'ViT-B-32__openai',
     },
-    iqa: {
-      enabled: true,
-      modelName: 'arniqa-kadid',
-    },
     duplicateDetection: {
       enabled: true,
       maxDistance: 0.01,
@@ -238,11 +238,25 @@ export const defaults = Object.freeze<SystemConfig>({
       maxDistance: 0.5,
       minFaces: 3,
     },
+    iqa: {
+      enabled: true,
+      modelName: 'arniqa-kadid',
+    },
   },
   map: {
     enabled: true,
     lightStyle: 'https://tiles.immich.cloud/v1/style/light.json',
     darkStyle: 'https://tiles.immich.cloud/v1/style/dark.json',
+  },
+  memorylane: {
+    enabled: true,
+    weights: {
+      [MemorylaneType.CLUSTER]: 0.6,
+      [MemorylaneType.PERSON]: 0.1,
+      [MemorylaneType.RECENT_HIGHLIGHTS]: 0.1,
+      [MemorylaneType.SIMILARITY]: 0.1,
+      [MemorylaneType.YEAR]: 0.1,
+    }
   },
   reverseGeocoding: {
     enabled: true,
