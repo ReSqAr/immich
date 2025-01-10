@@ -19,6 +19,7 @@ import { isSmartSearchEnabled } from 'src/utils/misc';
 
 const DEFAULT_LIMIT = 12;
 const BINS = 1367;
+const HISTOGRAM_BUCKETS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
 
 const CLIP_QUERIES = {
   nature: [
@@ -198,7 +199,7 @@ function capitalizeWords(str: string): string {
 }
 
 function randomMemorylaneType(seed: number, memorylaneWeights: Record<MemorylaneType, number>) {
-  const weights = Object.entries(memorylaneWeights).map(([type, weight]) => ({item: type as MemorylaneType,weight}));
+  const weights = Object.entries(memorylaneWeights).map(([type, weight]) => ({ item: type as MemorylaneType, weight }));
   const weightedTypes = computeCumulativeWeights(weights, (item) => item.weight);
   return findItemForRandom(weightedTypes, seed)?.item || MemorylaneType.RECENT_HIGHLIGHTS;
 }
@@ -302,14 +303,19 @@ export class MemorylaneService extends BaseService {
     // TODO
     //await this.requireAccess({auth, permission: Permission.MEMORY_READ, ids: [id]});
 
+    const start = Date.now();
+
     const seed = await stringToSignedSHA32(id);
     const effectiveLimit = limit || DEFAULT_LIMIT;
 
-    const memorylaneWeights = await this.getConfig({ withCache: false }).then(value => value['memorylane']['weights'])
+    const memorylaneWeights = await this.getConfig({ withCache: false }).then(
+      (value) => value['memorylane']['weights'],
+    );
     const effectiveMemorylane = memorylane || randomMemorylaneType(seed, memorylaneWeights);
 
     const userIds = await this.getUserIdsToSearch(auth);
 
+    let result;
     switch (effectiveMemorylane) {
       case MemorylaneType.CLUSTER: {
         const { assetIds, clusterID, locations, startDate, endDate } = await this.memorylaneRepository.cluster(
@@ -317,50 +323,64 @@ export class MemorylaneService extends BaseService {
           seed,
           effectiveLimit,
         );
-        return {
+        result = {
           id: id,
           type: MemorylaneType.CLUSTER,
           metadata: { clusterID, locations, startDate, endDate } as MemorlaneClusterMetadata,
           assets: await this.loadAssetIds(assetIds),
         };
+        break;
       }
       case MemorylaneType.PERSON: {
         const { assetIds, personName } = await this.memorylaneRepository.person(userIds, seed, effectiveLimit);
-        return {
+        result = {
           id: id,
           type: MemorylaneType.PERSON,
           metadata: { personName } as MemorlanePersonMetadata,
           assets: await this.loadAssetIds(assetIds),
         };
+        break;
       }
       case MemorylaneType.RECENT_HIGHLIGHTS: {
         const { assetIds } = await this.memorylaneRepository.recentHighlight(userIds, seed, effectiveLimit);
-        return {
+        result = {
           id: id,
           type: MemorylaneType.RECENT_HIGHLIGHTS,
           metadata: {} as MemorlaneRecentHighlightsMetadata,
           assets: await this.loadAssetIds(assetIds),
         };
+        break;
       }
       case MemorylaneType.SIMILARITY: {
         const { assets, query } = await this.similarity(userIds, seed, effectiveLimit);
-        return {
+        result = {
           id: id,
           type: MemorylaneType.SIMILARITY,
           metadata: { category: capitalizeWords(query) } as MemorlaneSimilarityMetadata,
           assets,
         };
+        break;
       }
       case MemorylaneType.YEAR: {
         const { assetIds, year } = await this.memorylaneRepository.year(userIds, seed, effectiveLimit);
-        return {
+        result = {
           id: id,
           type: MemorylaneType.YEAR,
           metadata: { year } as MemorlaneYearMetadata,
           assets: await this.loadAssetIds(assetIds),
         };
+        break;
       }
     }
+
+    this.telemetryRepository.api.addToHistogram(`memorylane.${effectiveMemorylane}.load`, Date.now() - start, {
+      description: 'Duration of memorylane load operation',
+      unit: 'ms',
+      advice: {
+        explicitBucketBoundaries: HISTOGRAM_BUCKETS,
+      },
+    });
+    return result;
   }
 
   @OnJob({ name: JobName.MEMORYLANE_REFRESH, queue: QueueName.BACKGROUND_TASK })
