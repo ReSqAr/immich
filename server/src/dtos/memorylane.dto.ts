@@ -1,10 +1,9 @@
 import { ApiExtraModels, ApiProperty, getSchemaPath } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import {IsArray, IsInt, IsNotEmpty, IsPositive, IsString, ValidateNested} from 'class-validator';
+import { IsArray, IsInt, IsNotEmpty, IsPositive, IsString, ValidateNested } from 'class-validator';
 import { AssetResponseDto } from 'src/dtos/asset-response.dto';
 import { MemorylaneType } from 'src/enum';
 import { Optional } from 'src/validation';
-import {PeopleUpdateItem} from "./person.dto";
 
 export class MemorylaneParamDto {
   @IsNotEmpty()
@@ -22,7 +21,6 @@ export class MemorylaneQueryDto {
   @Optional()
   type?: MemorylaneType;
 }
-
 
 export class MemorylaneRequest {
   @IsNotEmpty()
@@ -46,8 +44,6 @@ export class MemorylanesBodyDto {
   @Type(() => MemorylaneRequest)
   requests!: MemorylaneRequest[];
 }
-
-
 
 export class MemorlaneClusterMetadata {
   clusterID?: number;

@@ -30,11 +30,12 @@ import {
   Colorspace,
   ImageFormat,
   LogLevel,
+  MemorylaneType,
   ToneMapping,
   TranscodeHWAccel,
   TranscodePolicy,
   VideoCodec,
-  VideoContainer, MemorylaneType,
+  VideoContainer,
 } from 'src/enum';
 import { ConcurrentQueueName, QueueName } from 'src/interfaces/job.interface';
 import { IsCronExpression, ValidateBoolean } from 'src/validation';

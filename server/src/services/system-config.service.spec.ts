@@ -5,7 +5,8 @@ import {
   Colorspace,
   CQMode,
   ImageFormat,
-  LogLevel, MemorylaneType,
+  LogLevel,
+  MemorylaneType,
   ToneMapping,
   TranscodeHWAccel,
   TranscodePolicy,
@@ -120,7 +121,7 @@ const updatedConfig = Object.freeze<SystemConfig>({
       [MemorylaneType.RECENT_HIGHLIGHTS]: 0.1,
       [MemorylaneType.SIMILARITY]: 0.1,
       [MemorylaneType.YEAR]: 0.1,
-    }
+    },
   },
   reverseGeocoding: {
     enabled: true,

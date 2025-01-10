@@ -89,7 +89,7 @@ export class MemorylaneRepository implements IMemorylaneRepository {
     const assetIds: string[] = result.map(({ id }: { id: string }) => id);
 
     if (!result || result.length == 0) {
-      return {clusterID: undefined, locations: [], startDate: undefined, endDate: undefined, assetIds};
+      return { clusterID: undefined, locations: [], startDate: undefined, endDate: undefined, assetIds };
     }
 
     const {
