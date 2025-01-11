@@ -23,8 +23,8 @@ export interface MemoryLaneYear extends Memorylane {
 
 export interface IMemorylaneRepository {
   refresh(): Promise<void>;
-  cluster(userIds: string[], seed: number, limit: number): Promise<MemoryLaneCluster>;
-  person(userIds: string[], seed: number, limit: number): Promise<MemoryLanePerson>;
-  recentHighlight(userIds: string[], seed: number, limit: number): Promise<MemoryLaneRecentHighlights>;
-  year(userIds: string[], seed: number, limit: number): Promise<MemoryLaneYear>;
+  cluster(userIds: string[], seed: number, limit: number): Promise<MemoryLaneCluster | undefined>;
+  person(userIds: string[], seed: number, limit: number): Promise<MemoryLanePerson | undefined>;
+  recentHighlight(userIds: string[], seed: number, limit: number): Promise<MemoryLaneRecentHighlights | undefined>;
+  year(userIds: string[], seed: number, limit: number): Promise<MemoryLaneYear | undefined>;
 }

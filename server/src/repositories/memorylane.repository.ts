@@ -84,12 +84,12 @@ export class MemorylaneRepository implements IMemorylaneRepository {
     this.logger.debug(`refreshed all memorylane materialized views in ${duration}ms`);
   }
 
-  async cluster(userIds: string[], seed: number, limit: number): Promise<MemoryLaneCluster> {
+  async cluster(userIds: string[], seed: number, limit: number): Promise<MemoryLaneCluster | undefined> {
     const result = await this.assetRepository.query(clusterQuery, [seed, limit, userIds]);
     const assetIds: string[] = result.map(({ id }: { id: string }) => id);
 
-    if (!result || result.length == 0) {
-      return { clusterID: undefined, locations: [], startDate: undefined, endDate: undefined, assetIds };
+    if (!result || result.length === 0) {
+      return undefined;
     }
 
     const {
@@ -108,34 +108,42 @@ export class MemorylaneRepository implements IMemorylaneRepository {
     };
   }
 
-  async person(userIds: string[], seed: number, limit: number): Promise<MemoryLanePerson> {
+  async person(userIds: string[], seed: number, limit: number): Promise<MemoryLanePerson | undefined> {
     const result = await this.assetRepository.query(personQuery, [seed, limit, userIds]);
     const assetIds: string[] = result.map(({ id }: { id: string }) => id);
 
-    let personName = undefined;
-    if (result && result.length > 0) {
-      personName = result[0]['person_name'];
+    if (!result || result.length === 0) {
+      return undefined;
     }
 
+    const { person_name: personName } = result[0];
     return { personName, assetIds };
   }
 
-  async recentHighlight(userIds: string[], seed: number, limit: number): Promise<MemoryLaneRecentHighlights> {
+  async recentHighlight(
+    userIds: string[],
+    seed: number,
+    limit: number,
+  ): Promise<MemoryLaneRecentHighlights | undefined> {
     const result = await this.assetRepository.query(recentHighlightsQuery, [seed, limit, userIds]);
     const assetIds: string[] = result.map(({ id }: { id: string }) => id);
+
+    if (!result || result.length === 0) {
+      return undefined;
+    }
 
     return { assetIds };
   }
 
-  async year(userIds: string[], seed: number, limit: number): Promise<MemoryLaneYear> {
+  async year(userIds: string[], seed: number, limit: number): Promise<MemoryLaneYear | undefined> {
     const result = await this.assetRepository.query(yearQuery, [seed, limit, userIds]);
     const assetIds: string[] = result.map(({ id }: { id: string }) => id);
 
-    let year = undefined;
-    if (result && result.length > 0) {
-      year = result[0]['year'];
+    if (!result || result.length === 0) {
+      return undefined;
     }
 
+    const { year } = result[0];
     return { year: `${year}`, assetIds };
   }
 }

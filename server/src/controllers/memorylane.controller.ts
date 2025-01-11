@@ -18,17 +18,20 @@ export class MemoryLaneController {
 
   @Get(':id')
   @Authenticated({ permission: Permission.MEMORY_READ })
-  getMemoryLane(
+  async getMemoryLane(
     @Auth() auth: AuthDto,
     @Param() { id }: MemorylaneParamDto,
     @Query() { limit, type }: MemorylaneQueryDto,
-  ): Promise<MemorylaneResponseDto> {
-    return this.service.get(auth, type, id, limit);
+  ): Promise<MemorylaneResponseDto | undefined> {
+    return await this.service.get(auth, type, id, limit);
   }
 
   @Post()
   @Authenticated({ permission: Permission.MEMORY_READ })
-  getMemoryLanes(@Auth() auth: AuthDto, @Body() dto: MemorylanesBodyDto): Promise<MemorylaneResponseDto[]> {
-    return Promise.all(dto.requests.map((request) => this.service.get(auth, request.type, request.id, request.limit)));
+  async getMemoryLanes(@Auth() auth: AuthDto, @Body() dto: MemorylanesBodyDto): Promise<MemorylaneResponseDto[]> {
+    const results = await Promise.all(
+      dto.requests.map((request) => this.service.get(auth, request.type, request.id, request.limit)),
+    );
+    return results.filter((value): value is MemorylaneResponseDto => value !== undefined);
   }
 }

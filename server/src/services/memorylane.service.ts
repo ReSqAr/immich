@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { OnJob } from 'src/decorators';
 import { mapAsset } from 'src/dtos/asset-response.dto';
 import { AuthDto } from 'src/dtos/auth.dto';
@@ -274,8 +274,9 @@ export class MemorylaneService extends BaseService {
     const pagination = { page: 1, size: 4 * limit };
     const { machineLearning } = await this.getConfig({ withCache: false });
     if (!isSmartSearchEnabled(machineLearning)) {
-      throw new BadRequestException('Smart search is not enabled');
+      return;
     }
+
     const embedding = await this.machineLearningRepository.encodeText(
       machineLearning.urls,
       query,
@@ -288,6 +289,10 @@ export class MemorylaneService extends BaseService {
     const result = await this.searchRepository.searchSmart(pagination, options);
     const selectedAssets = selectRandomPhotos(result.items, seed, limit);
 
+    if (!selectedAssets || selectedAssets.length === 0) {
+      return;
+    }
+
     return {
       query,
       assets: selectedAssets.map((asset) => mapAsset(asset)),
@@ -299,7 +304,7 @@ export class MemorylaneService extends BaseService {
     memorylane: MemorylaneType | undefined,
     id: string,
     limit: number | undefined,
-  ): Promise<MemorylaneResponseDto> {
+  ): Promise<MemorylaneResponseDto | undefined> {
     // TODO
     //await this.requireAccess({auth, permission: Permission.MEMORY_READ, ids: [id]});
 
@@ -318,13 +323,14 @@ export class MemorylaneService extends BaseService {
     let result;
     switch (effectiveMemorylane) {
       case MemorylaneType.CLUSTER: {
-        const { assetIds, clusterID, locations, startDate, endDate } = await this.memorylaneRepository.cluster(
-          userIds,
-          seed,
-          effectiveLimit,
-        );
+        const clusterResult = await this.memorylaneRepository.cluster(userIds, seed, effectiveLimit);
+        if (!clusterResult) {
+          return undefined;
+        }
+
+        const { assetIds, clusterID, locations, startDate, endDate } = clusterResult;
         result = {
-          id: id,
+          id,
           type: MemorylaneType.CLUSTER,
           metadata: { clusterID, locations, startDate, endDate } as MemorlaneClusterMetadata,
           assets: await this.loadAssetIds(assetIds),
@@ -332,9 +338,14 @@ export class MemorylaneService extends BaseService {
         break;
       }
       case MemorylaneType.PERSON: {
-        const { assetIds, personName } = await this.memorylaneRepository.person(userIds, seed, effectiveLimit);
+        const personResult = await this.memorylaneRepository.person(userIds, seed, effectiveLimit);
+        if (!personResult) {
+          return undefined;
+        }
+
+        const { assetIds, personName } = personResult;
         result = {
-          id: id,
+          id,
           type: MemorylaneType.PERSON,
           metadata: { personName } as MemorlanePersonMetadata,
           assets: await this.loadAssetIds(assetIds),
@@ -342,9 +353,14 @@ export class MemorylaneService extends BaseService {
         break;
       }
       case MemorylaneType.RECENT_HIGHLIGHTS: {
-        const { assetIds } = await this.memorylaneRepository.recentHighlight(userIds, seed, effectiveLimit);
+        const recentHighlightsResult = await this.memorylaneRepository.recentHighlight(userIds, seed, effectiveLimit);
+        if (!recentHighlightsResult) {
+          return undefined;
+        }
+
+        const { assetIds } = recentHighlightsResult;
         result = {
-          id: id,
+          id,
           type: MemorylaneType.RECENT_HIGHLIGHTS,
           metadata: {} as MemorlaneRecentHighlightsMetadata,
           assets: await this.loadAssetIds(assetIds),
@@ -352,9 +368,14 @@ export class MemorylaneService extends BaseService {
         break;
       }
       case MemorylaneType.SIMILARITY: {
-        const { assets, query } = await this.similarity(userIds, seed, effectiveLimit);
+        const similarityResult = await this.similarity(userIds, seed, effectiveLimit);
+        if (!similarityResult) {
+          return undefined;
+        }
+
+        const { assets, query } = similarityResult;
         result = {
-          id: id,
+          id,
           type: MemorylaneType.SIMILARITY,
           metadata: { category: capitalizeWords(query) } as MemorlaneSimilarityMetadata,
           assets,
@@ -362,9 +383,14 @@ export class MemorylaneService extends BaseService {
         break;
       }
       case MemorylaneType.YEAR: {
-        const { assetIds, year } = await this.memorylaneRepository.year(userIds, seed, effectiveLimit);
+        const yearResult = await this.memorylaneRepository.year(userIds, seed, effectiveLimit);
+        if (!yearResult) {
+          return undefined;
+        }
+
+        const { assetIds, year } = yearResult;
         result = {
-          id: id,
+          id,
           type: MemorylaneType.YEAR,
           metadata: { year } as MemorlaneYearMetadata,
           assets: await this.loadAssetIds(assetIds),
