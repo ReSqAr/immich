@@ -7676,7 +7676,11 @@
             "type": "string"
           },
           "type": {
-            "$ref": "#/components/schemas/ReactionType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReactionType"
+              }
+            ]
           }
         },
         "required": [
@@ -7703,7 +7707,11 @@
             "type": "string"
           },
           "type": {
-            "$ref": "#/components/schemas/ReactionType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReactionType"
+              }
+            ]
           },
           "user": {
             "$ref": "#/components/schemas/UserResponseDto"
@@ -7804,7 +7812,11 @@
             "type": "string"
           },
           "order": {
-            "$ref": "#/components/schemas/AssetOrder"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssetOrder"
+              }
+            ]
           },
           "owner": {
             "$ref": "#/components/schemas/UserResponseDto"
@@ -7864,7 +7876,12 @@
       "AlbumUserAddDto": {
         "properties": {
           "role": {
-            "$ref": "#/components/schemas/AlbumUserRole"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AlbumUserRole"
+              }
+            ],
+            "default": "editor"
           },
           "userId": {
             "format": "uuid",
@@ -7879,7 +7896,11 @@
       "AlbumUserCreateDto": {
         "properties": {
           "role": {
-            "$ref": "#/components/schemas/AlbumUserRole"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AlbumUserRole"
+              }
+            ]
           },
           "userId": {
             "format": "uuid",
@@ -7895,7 +7916,11 @@
       "AlbumUserResponseDto": {
         "properties": {
           "role": {
-            "$ref": "#/components/schemas/AlbumUserRole"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AlbumUserRole"
+              }
+            ]
           },
           "user": {
             "$ref": "#/components/schemas/UserResponseDto"
@@ -8196,7 +8221,11 @@
             "nullable": true
           },
           "sourceType": {
-            "$ref": "#/components/schemas/SourceType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SourceType"
+              }
+            ]
           }
         },
         "required": [
@@ -8267,7 +8296,11 @@
             "type": "integer"
           },
           "sourceType": {
-            "$ref": "#/components/schemas/SourceType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SourceType"
+              }
+            ]
           }
         },
         "required": [
@@ -8363,7 +8396,11 @@
             "type": "array"
           },
           "name": {
-            "$ref": "#/components/schemas/AssetJobName"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssetJobName"
+              }
+            ]
           }
         },
         "required": [
@@ -8461,7 +8498,11 @@
             "type": "string"
           },
           "status": {
-            "$ref": "#/components/schemas/AssetMediaStatus"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssetMediaStatus"
+              }
+            ]
           }
         },
         "required": [
@@ -8602,7 +8643,11 @@
             "type": "string"
           },
           "type": {
-            "$ref": "#/components/schemas/AssetTypeEnum"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssetTypeEnum"
+              }
+            ]
           },
           "unassignedFaces": {
             "items": {
@@ -8715,7 +8760,11 @@
       "AvatarResponse": {
         "properties": {
           "color": {
-            "$ref": "#/components/schemas/UserAvatarColor"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserAvatarColor"
+              }
+            ]
           }
         },
         "required": [
@@ -8726,7 +8775,11 @@
       "AvatarUpdate": {
         "properties": {
           "color": {
-            "$ref": "#/components/schemas/UserAvatarColor"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserAvatarColor"
+              }
+            ]
           }
         },
         "type": "object"
@@ -9363,10 +9416,18 @@
             "type": "string"
           },
           "entityType": {
-            "$ref": "#/components/schemas/PathEntityType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PathEntityType"
+              }
+            ]
           },
           "pathType": {
-            "$ref": "#/components/schemas/PathType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PathType"
+              }
+            ]
           },
           "pathValue": {
             "type": "string"
@@ -9443,7 +9504,11 @@
       "JobCommandDto": {
         "properties": {
           "command": {
-            "$ref": "#/components/schemas/JobCommand"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/JobCommand"
+              }
+            ]
           },
           "force": {
             "type": "boolean"
@@ -9488,7 +9553,11 @@
       "JobCreateDto": {
         "properties": {
           "name": {
-            "$ref": "#/components/schemas/ManualJobName"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ManualJobName"
+              }
+            ]
           }
         },
         "required": [
@@ -9902,7 +9971,11 @@
             "type": "string"
           },
           "type": {
-            "$ref": "#/components/schemas/MemoryType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MemoryType"
+              }
+            ]
           }
         },
         "required": [
@@ -9967,7 +10040,11 @@
             "type": "string"
           },
           "type": {
-            "$ref": "#/components/schemas/MemoryType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MemoryType"
+              }
+            ]
           },
           "updatedAt": {
             "format": "date-time",
@@ -10019,7 +10096,11 @@
             "type": "number"
           },
           "type": {
-            "$ref": "#/components/schemas/MemorylaneType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MemorylaneType"
+              }
+            ]
           }
         },
         "required": [
@@ -10068,7 +10149,11 @@
             ]
           },
           "type": {
-            "$ref": "#/components/schemas/MemorylaneType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MemorylaneType"
+              }
+            ]
           }
         },
         "required": [
@@ -10190,7 +10275,11 @@
             "type": "string"
           },
           "order": {
-            "$ref": "#/components/schemas/AssetOrder"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssetOrder"
+              }
+            ]
           },
           "originalFileName": {
             "type": "string"
@@ -10241,7 +10330,11 @@
             "type": "string"
           },
           "type": {
-            "$ref": "#/components/schemas/AssetTypeEnum"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssetTypeEnum"
+              }
+            ]
           },
           "updatedAfter": {
             "format": "date-time",
@@ -10325,7 +10418,11 @@
       "PartnerResponseDto": {
         "properties": {
           "avatarColor": {
-            "$ref": "#/components/schemas/UserAvatarColor"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserAvatarColor"
+              }
+            ]
           },
           "email": {
             "type": "string"
@@ -10843,7 +10940,11 @@
             "type": "string"
           },
           "type": {
-            "$ref": "#/components/schemas/AssetTypeEnum"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssetTypeEnum"
+              }
+            ]
           },
           "updatedAfter": {
             "format": "date-time",
@@ -11519,7 +11620,11 @@
             "type": "boolean"
           },
           "type": {
-            "$ref": "#/components/schemas/SharedLinkType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SharedLinkType"
+              }
+            ]
           }
         },
         "required": [
@@ -11604,7 +11709,11 @@
             "type": "string"
           },
           "type": {
-            "$ref": "#/components/schemas/SharedLinkType"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/SharedLinkType"
+              }
+            ]
           },
           "userId": {
             "type": "string"
@@ -11754,7 +11863,11 @@
             "type": "string"
           },
           "type": {
-            "$ref": "#/components/schemas/AssetTypeEnum"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssetTypeEnum"
+              }
+            ]
           },
           "updatedAfter": {
             "format": "date-time",
@@ -11940,7 +12053,11 @@
       "SystemConfigFFmpegDto": {
         "properties": {
           "accel": {
-            "$ref": "#/components/schemas/TranscodeHWAccel"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TranscodeHWAccel"
+              }
+            ]
           },
           "accelDecode": {
             "type": "boolean"
@@ -11969,7 +12086,11 @@
             "type": "integer"
           },
           "cqMode": {
-            "$ref": "#/components/schemas/CQMode"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CQMode"
+              }
+            ]
           },
           "crf": {
             "maximum": 51,
@@ -11995,13 +12116,21 @@
             "type": "integer"
           },
           "targetAudioCodec": {
-            "$ref": "#/components/schemas/AudioCodec"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AudioCodec"
+              }
+            ]
           },
           "targetResolution": {
             "type": "string"
           },
           "targetVideoCodec": {
-            "$ref": "#/components/schemas/VideoCodec"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/VideoCodec"
+              }
+            ]
           },
           "temporalAQ": {
             "type": "boolean"
@@ -12011,10 +12140,18 @@
             "type": "integer"
           },
           "tonemap": {
-            "$ref": "#/components/schemas/ToneMapping"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ToneMapping"
+              }
+            ]
           },
           "transcode": {
-            "$ref": "#/components/schemas/TranscodePolicy"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/TranscodePolicy"
+              }
+            ]
           },
           "twoPass": {
             "type": "boolean"
@@ -12059,7 +12196,11 @@
       "SystemConfigGeneratedImageDto": {
         "properties": {
           "format": {
-            "$ref": "#/components/schemas/ImageFormat"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ImageFormat"
+              }
+            ]
           },
           "quality": {
             "maximum": 100,
@@ -12081,7 +12222,11 @@
       "SystemConfigImageDto": {
         "properties": {
           "colorspace": {
-            "$ref": "#/components/schemas/Colorspace"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Colorspace"
+              }
+            ]
           },
           "extractEmbedded": {
             "type": "boolean"
@@ -12203,7 +12348,11 @@
             "type": "boolean"
           },
           "level": {
-            "$ref": "#/components/schemas/LogLevel"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LogLevel"
+              }
+            ]
           }
         },
         "required": [
@@ -12920,7 +13069,11 @@
             "type": "boolean"
           },
           "order": {
-            "$ref": "#/components/schemas/AssetOrder"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AssetOrder"
+              }
+            ]
           }
         },
         "type": "object"
@@ -12928,7 +13081,11 @@
       "UpdateAlbumUserDto": {
         "properties": {
           "role": {
-            "$ref": "#/components/schemas/AlbumUserRole"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AlbumUserRole"
+              }
+            ]
           }
         },
         "required": [
@@ -13095,7 +13252,11 @@
       "UserAdminResponseDto": {
         "properties": {
           "avatarColor": {
-            "$ref": "#/components/schemas/UserAvatarColor"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserAvatarColor"
+              }
+            ]
           },
           "createdAt": {
             "format": "date-time",
@@ -13150,7 +13311,11 @@
             "type": "boolean"
           },
           "status": {
-            "$ref": "#/components/schemas/UserStatus"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserStatus"
+              }
+            ]
           },
           "storageLabel": {
             "nullable": true,
@@ -13323,7 +13488,11 @@
       "UserResponseDto": {
         "properties": {
           "avatarColor": {
-            "$ref": "#/components/schemas/UserAvatarColor"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserAvatarColor"
+              }
+            ]
           },
           "email": {
             "type": "string"
