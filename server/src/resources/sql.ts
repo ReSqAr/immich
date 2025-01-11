@@ -3,520 +3,110 @@
 // Command: npx ts-node embedStrings.ts -s ./resources/sql/ -o src/resources/sql.ts
 // *****************************************************
 
-export const memorylaneClusterQuery = `
-    WITH
-        CONSTANTS AS (
-            SELECT
-                $1::BIGINT            AS SEED,
-                $2::INT               AS RESULT_LIMIT,
-                $3::uuid[]            AS USER_IDS,
-                INTERVAL '15 minutes' AS MIN_TIME_BETWEEN_PHOTOS
-        ),
+export const memorylaneClusterQuery = `WITH
+    CONSTANTS AS (
+        SELECT
+            $1::BIGINT            AS SEED,
+            $2::INT               AS RESULT_LIMIT,
+            $3::uuid[]            AS USER_IDS,
+            INTERVAL '15 minutes' AS MIN_TIME_BETWEEN_PHOTOS
+    ),
 
-/* ---------------------------------------------------------------------------
-   1) Randomly pick exactly ONE cluster.
-      We do this by giving each cluster a weight = 1, summing them, then doing
-      one random draw.
---------------------------------------------------------------------------- */
-        cluster_data AS (
-            SELECT
-                c.cluster_id                           AS cluster_id,
-                c.cluster_start                        AS cluster_start,
-                c.cluster_end                          AS cluster_end,
-                JSONB_BUILD_OBJECT(
+    cluster_data AS (
+        SELECT
+            c.cluster_id                           AS cluster_id,
+            c.cluster_start                        AS cluster_start,
+            c.cluster_end                          AS cluster_end,
+            JSONB_BUILD_OBJECT(
                     'cities', c.cities,
                     'states', c.states,
                     'countries', c.countries
-                ) AS cluster_location_distribution,
-                SQRT(c.cluster_cardinality_score_ge_0) AS weight
-            FROM asset_dbscan_clusters c
-                 CROSS JOIN CONSTANTS co
-            -- Optional: filter out uninteresting clusters if desired
-            WHERE c.cluster_cardinality_score_ge_0 >= co.RESULT_LIMIT
-              AND c."ownerId" = ANY (co.USER_IDS)
-        ),
-        cluster_w AS (
-            /* Compute total_weight, plus a running sum (right_cumulative). */
-            SELECT
-                cd.cluster_id,
-                cd.cluster_start,
-                cd.cluster_end,
-                cd.cluster_location_distribution,
-                cd.weight,
-                SUM(cd.weight) OVER ()                       AS total_weight,
-                SUM(cd.weight) OVER (ORDER BY cd.cluster_id) AS right_cumulative
-            FROM cluster_data cd
-        ),
-        cluster_w2 AS (
-            /* Define left_cumulative using LAG(...) */
-            SELECT
-                cw.cluster_id,
-                cw.cluster_start,
-                cw.cluster_end,
-                cw.cluster_location_distribution,
-                cw.weight,
-                cw.total_weight,
-                cw.right_cumulative,
-                COALESCE(
-                                LAG(cw.right_cumulative) OVER (ORDER BY cw.cluster_id),
-                                0
-                ) AS left_cumulative
-            FROM cluster_w cw
-        ),
-        chosen_cluster AS (
-            /*
-               Pick the single cluster whose interval covers r % total_weight.
-               This always returns exactly one row.
-            */
-            SELECT
-                cw2.cluster_id,
-                cw2.cluster_start,
-                cw2.cluster_end,
-                cw2.cluster_location_distribution
-            FROM cluster_w2 cw2
-                 CROSS JOIN CONSTANTS c
-            WHERE (c.SEED % ROUND(1367 * cw2.total_weight)::BIGINT) BETWEEN 1367 * cw2.left_cumulative AND 1367 * cw2.right_cumulative
-            LIMIT 1
-        ),
-
-/* ---------------------------------------------------------------------------
-   2) From that chosen cluster, select random photos:
-      - Only photos with quality >= 0
-      - Weight = 1 + normalized_quality_score
-      - Enforce 15min min separation
-      - Return up to 12 total
-      - Sort final results by timestamp
---------------------------------------------------------------------------- */
-        data AS (
-            /* Pull assets in the chosen cluster and define the new weight. */
-            SELECT
-                ad.id,
-                ad.ts,
-                1 + ad.normalized_quality_score AS weight
-            FROM asset_analysis ad
-                 JOIN chosen_cluster cc ON ad.cluster_id = cc.cluster_id
-            WHERE ad.normalized_quality_score >= 0
-        ),
-        w AS (
-            /* Compute total_weight across these photos, plus their running total. */
-            SELECT
-                d.id,
-                d.ts,
-                d.weight,
-                SUM(d.weight) OVER ()              AS total_weight,
-                SUM(d.weight) OVER (ORDER BY d.ts) AS right_cumulative
-            FROM data d
-        ),
-        w2 AS (
-            /* LAG(...) to define each row's [left_cumulative, right_cumulative). */
-            SELECT
-                w.id,
-                w.ts,
-                w.weight,
-                w.total_weight,
-                w.right_cumulative,
-                COALESCE(LAG(w.right_cumulative) OVER (ORDER BY w.ts), 0) AS left_cumulative
-            FROM w
-        ),
-        candidates AS (
-            /*
-               For each random draw, find the photo whose [left_cumulative, right_cumulative)
-               covers r % total_weight. Order them by draw_number so we can filter by
-               “first come, first served” below.
-            */
-            SELECT
-                i as draw_number,
-                w2.id,
-                w2.ts
-            FROM w2
-                 CROSS JOIN CONSTANTS c
-                 JOIN generate_series(0, 2 * c.RESULT_LIMIT) i
-                      ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
-            ORDER BY draw_number
-        ),
-        candidates_with_prev AS (
-            SELECT
-                a.draw_number,
-                a.id,
-                a.ts,
-                LAG(a.ts) OVER (ORDER BY a.ts) AS prev_ts
-            FROM candidates a
-            CROSS JOIN CONSTANTS c
-        ),
-        filtered_candidates AS (
-            SELECT
-                sc.draw_number,
-                sc.id,
-                sc.ts,
-                ROW_NUMBER() OVER (ORDER BY sc.draw_number) AS row_number
-            FROM candidates_with_prev sc
-            CROSS JOIN CONSTANTS c
-            WHERE sc.prev_ts IS NULL
-               OR sc.ts - sc.prev_ts >= c.MIN_TIME_BETWEEN_PHOTOS
-            ORDER BY sc.draw_number
-        )
-
-
-/* ---------------------------------------------------------------------------
-   Final selection: up to 12 photos, sorted by time
---------------------------------------------------------------------------- */
-    SELECT
-        fc.id,
-        cc.cluster_id,
-        cc.cluster_start,
-        cc.cluster_end,
-        cc.cluster_location_distribution
-    FROM filtered_candidates fc
-         CROSS JOIN CONSTANTS c
-         CROSS JOIN chosen_cluster cc
-    WHERE fc.row_number <= c.RESULT_LIMIT
-    ORDER BY fc.ts
-`;
-
-export const memorylanePersonQuery = `
-    WITH
-        CONSTANTS AS (
-            SELECT
-                $1::BIGINT            AS SEED,
-                $2::INT               AS RESULT_LIMIT,
-                $3::uuid[]            AS USER_IDS,
-                INTERVAL '15 minutes' AS MIN_TIME_BETWEEN_PHOTOS,
-                2 * $2::INT           AS MIN_PICTURES_PER_PERSON
-        ),
-
-/* ---------------------------------------------------------------------------
-   1) Get all persons with their photo count (normalized score >= 1)
-   and randomly select one person using weighted selection
---------------------------------------------------------------------------- */
-        person_data AS (
-            SELECT
-                p.id                               AS person_id,
-                p.name                             AS person_name,
-                COUNT(DISTINCT af.id)              AS photo_count,
-                SQRT(COUNT(DISTINCT af.id)::FLOAT) AS weight
-            FROM person p
-                 JOIN asset_faces af ON p.id = af."personId"
-                 JOIN asset_analysis aa ON af."assetId" = aa.id
-                 CROSS JOIN CONSTANTS co
-            WHERE p."ownerId" = ANY (co.USER_IDS)
-              AND COALESCE(aa.normalized_quality_score, 0) >= 0
-            GROUP BY p.id, p.name, co.MIN_PICTURES_PER_PERSON
-            HAVING COUNT(DISTINCT af.id) > co.MIN_PICTURES_PER_PERSON
-        ),
-        person_w AS (
-            SELECT
-                pd.person_id,
-                pd.person_name,
-                pd.weight,
-                SUM(pd.weight) OVER ()                      AS total_weight,
-                SUM(pd.weight) OVER (ORDER BY pd.person_id) AS right_cumulative
-            FROM person_data pd
-        ),
-        person_w2 AS (
-            SELECT
-                pw.person_id,
-                pw.person_name,
-                pw.weight,
-                pw.total_weight,
-                pw.right_cumulative,
-                COALESCE(LAG(pw.right_cumulative) OVER (ORDER BY pw.person_id), 0) AS left_cumulative
-            FROM person_w pw
-        ),
-
-        chosen_person AS (
-            SELECT
-                pw2.person_id,
-                pw2.person_name
-            FROM person_w2 pw2
-                 CROSS JOIN CONSTANTS c
-            WHERE c.SEED % ROUND(1367 * pw2.total_weight)::BIGINT BETWEEN 1367 * pw2.left_cumulative AND 1367 * pw2.right_cumulative
-            LIMIT 1
-        ),
-
-/* ---------------------------------------------------------------------------
-   2) Get all photos of the chosen person with normalized score >= 1
-   and select random photos with quality score weights
---------------------------------------------------------------------------- */
-        data AS (
-            SELECT
-                aa.id,
-                aa.ts,
-                1 + COALESCE(aa.normalized_quality_score, 0) AS weight
-            FROM asset_analysis aa
-                 JOIN asset_faces af ON aa.id = af."assetId"
-                 JOIN chosen_person cp ON af."personId" = cp.person_id
-            WHERE aa.normalized_quality_score >= 0
-        ),
-        w AS (
-            SELECT
-                d.id,
-                d.ts,
-                d.weight,
-                SUM(d.weight) OVER ()              AS total_weight,
-                SUM(d.weight) OVER (ORDER BY d.ts) AS right_cumulative
-            FROM data d
-        ),
-        w2 AS (
-            SELECT
-                w.id,
-                w.ts,
-                w.weight,
-                w.total_weight,
-                w.right_cumulative,
-                COALESCE(LAG(w.right_cumulative) OVER (ORDER BY w.ts), 0) AS left_cumulative
-            FROM w
-        ),
-        candidates AS (
-            SELECT
-                i AS draw_number,
-                w2.id,
-                w2.ts
-            FROM w2
-                 CROSS JOIN CONSTANTS c
-                 JOIN generate_series(0, 2 * c.RESULT_LIMIT) i
-                      ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
-            ORDER BY draw_number
-        ),
-        candidates_with_prev AS (
-            SELECT
-                a.draw_number,
-                a.id,
-                a.ts,
-                LAG(a.ts) OVER (ORDER BY a.ts) AS prev_ts
-            FROM candidates a
-            CROSS JOIN CONSTANTS c
-        ),
-        filtered_candidates AS (
-            SELECT
-                sc.draw_number,
-                sc.id,
-                sc.ts,
-                ROW_NUMBER() OVER (ORDER BY sc.draw_number) AS row_number
-            FROM candidates_with_prev sc
-            CROSS JOIN CONSTANTS c
-            WHERE sc.prev_ts IS NULL
-               OR sc.ts - sc.prev_ts >= c.MIN_TIME_BETWEEN_PHOTOS
-            ORDER BY sc.draw_number
-        )
-
-
-/* ---------------------------------------------------------------------------
-   Final selection: Return chosen photos and person name
---------------------------------------------------------------------------- */
-    SELECT
-        fc.id,
-        cp.person_name
-    FROM filtered_candidates fc
-         CROSS JOIN CONSTANTS c
-         CROSS JOIN chosen_person cp
-    WHERE fc.row_number <= c.RESULT_LIMIT
-    ORDER BY draw_number;
-`;
-
-export const memorylaneRecentHighlightsQuery = `
-  WITH
-    CONSTANTS AS (
-      SELECT
-        INTERVAL '3 months' AS LOOKBACK_WINDOW,
-        INTERVAL '6 HOURS'  AS MIN_TIME_BETWEEN_PHOTOS,
-        0.0                 AS MIN_QUALITY_SCORE,
-        $1::BIGINT          AS SEED,
-        $2::INT             AS RESULT_LIMIT,
-        $3::uuid[]          AS USER_IDS
+            )                                      AS cluster_location_distribution,
+            SQRT(c.cluster_cardinality_score_ge_0) AS weight
+        FROM asset_dbscan_clusters c
+             CROSS JOIN CONSTANTS co
+        WHERE
+              c.cluster_cardinality_score_ge_0 >= co.RESULT_LIMIT
+          AND c."ownerId" = ANY (co.USER_IDS)
     ),
+    cluster_w AS (
+        SELECT
+            cd.cluster_id,
+            cd.cluster_start,
+            cd.cluster_end,
+            cd.cluster_location_distribution,
+            cd.weight,
+            SUM(cd.weight) OVER ()                       AS total_weight,
+            SUM(cd.weight) OVER (ORDER BY cd.cluster_id) AS right_cumulative
+        FROM cluster_data cd
+    ),
+    cluster_w2 AS (
+        SELECT
+            cw.cluster_id,
+            cw.cluster_start,
+            cw.cluster_end,
+            cw.cluster_location_distribution,
+            cw.weight,
+            cw.total_weight,
+            cw.right_cumulative,
+            COALESCE(
+                            LAG(cw.right_cumulative) OVER (ORDER BY cw.cluster_id),
+                            0
+            ) AS left_cumulative
+        FROM cluster_w cw
+    ),
+    chosen_cluster AS (
+        SELECT
+            cw2.cluster_id,
+            cw2.cluster_start,
+            cw2.cluster_end,
+            cw2.cluster_location_distribution
+        FROM cluster_w2 cw2
+             CROSS JOIN CONSTANTS c
+        WHERE
+            (c.SEED % ROUND(1367 * cw2.total_weight)::BIGINT) BETWEEN 1367 * cw2.left_cumulative AND 1367 * cw2.right_cumulative
+        LIMIT 1
+    ),
+
     data AS (
-      /* 1) Pull relevant rows; rename score -> weight. */
-      SELECT
-        ad.id,
-        ad.ts                       AS ts,
-        1 + ad.normalized_quality_score AS weight
-      FROM asset_analysis AS ad
-           CROSS JOIN CONSTANTS c
-      WHERE ad.ts >= CURRENT_TIMESTAMP - c.LOOKBACK_WINDOW
-        AND ad.normalized_quality_score >= c.MIN_QUALITY_SCORE
-        AND ad."ownerId" = ANY (c.USER_IDS)
+        SELECT
+            ad.id,
+            ad.ts,
+            1 + ad.normalized_quality_score AS weight
+        FROM asset_analysis ad
+             JOIN chosen_cluster cc ON ad.cluster_id = cc.cluster_id
+        WHERE
+            ad.normalized_quality_score >= 0
     ),
     w AS (
-      /* 2) Compute total_weight and right_cumulative. */
-      SELECT
-        d.id,
-        d.ts,
-        d.weight,
-        /* total_weight is same for every row. */
-        SUM(d.weight) OVER ()              AS total_weight,
-        /* sum(...) OVER (ORDER BY ts) is the running total, i.e. "right boundary". */
-        SUM(d.weight) OVER (ORDER BY d.ts) AS right_cumulative
-      FROM data d
+        SELECT
+            d.id,
+            d.ts,
+            d.weight,
+            SUM(d.weight) OVER ()              AS total_weight,
+            SUM(d.weight) OVER (ORDER BY d.ts) AS right_cumulative
+        FROM data d
     ),
     w2 AS (
-      /* 3) Use LAG(...) to get "left boundary" from the previous row's right_cumulative. */
-      SELECT
-        w.id,
-        w.ts,
-        w.weight,
-        w.total_weight,
-        w.right_cumulative,
-        COALESCE(
-                LAG(w.right_cumulative) OVER (ORDER BY w.ts),
-                0
-        ) AS left_cumulative
-      FROM w
+        SELECT
+            w.id,
+            w.ts,
+            w.weight,
+            w.total_weight,
+            w.right_cumulative,
+            COALESCE(LAG(w.right_cumulative) OVER (ORDER BY w.ts), 0) AS left_cumulative
+        FROM w
     ),
     candidates AS (
-      SELECT
-        i AS draw_number,
-        w2.id,
-        w2.ts,
-        w2.weight
-      FROM w2
-           CROSS JOIN CONSTANTS c
-           JOIN generate_series(0, 2 * c.RESULT_LIMIT) i
-                ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
-      ORDER BY draw_number
-    ),
-      candidates_with_prev AS (
-          SELECT
-              a.draw_number,
-              a.id,
-              a.ts,
-              LAG(a.ts) OVER (ORDER BY a.ts) AS prev_ts
-          FROM candidates a
-          CROSS JOIN CONSTANTS c
-      ),
-      filtered_candidates AS (
-          SELECT
-              sc.draw_number,
-              sc.id,
-              sc.ts,
-              ROW_NUMBER() OVER (ORDER BY sc.draw_number) AS row_number
-          FROM candidates_with_prev sc
-          CROSS JOIN CONSTANTS c
-          WHERE sc.prev_ts IS NULL
-             OR sc.ts - sc.prev_ts >= c.MIN_TIME_BETWEEN_PHOTOS
-          ORDER BY sc.draw_number
-      )
-
-  SELECT
-    id
-  FROM filtered_candidates
-       CROSS JOIN CONSTANTS c
-  WHERE row_number <= c.RESULT_LIMIT
-  ORDER BY draw_number
-`;
-
-export const memorylaneYearQuery = `
-  WITH
-    CONSTANTS AS (
-      SELECT
-        $1::BIGINT            AS SEED,
-        $2::INT               AS RESULT_LIMIT,
-        $3::uuid[]            AS USER_IDS,
-        INTERVAL '15 minutes' AS MIN_TIME_BETWEEN_PHOTOS
-    ),
-
-/* ---------------------------------------------------------------------------
-   1) Randomly pick exactly ONE year.
-      We do this by giving each year a weight = sqrt # of good assets, summing them, then doing
-      one random draw.
---------------------------------------------------------------------------- */
-    year_data AS (
-      SELECT
-        EXTRACT(YEAR FROM ts) AS year,
-        SQRT(COUNT(*))        AS weight
-      FROM asset_analysis c
-           CROSS JOIN CONSTANTS co
-      WHERE c.normalized_quality_score >= 0
-        AND c."ownerId" = ANY (co.USER_IDS)
-      GROUP BY year, co.RESULT_LIMIT
-      HAVING COUNT(*) > co.RESULT_LIMIT
-    ),
-    year_w AS (
-      /* Compute total_weight, plus a running sum (right_cumulative). */
-      SELECT
-        cd.year,
-        cd.weight,
-        SUM(cd.weight) OVER ()                 AS total_weight,
-        SUM(cd.weight) OVER (ORDER BY cd.year) AS right_cumulative
-      FROM year_data cd
-    ),
-    year_w2 AS (
-      /* Define left_cumulative using LAG(...) */
-      SELECT
-        cw.year,
-        cw.weight,
-        cw.total_weight,
-        cw.right_cumulative,
-        COALESCE(
-                LAG(cw.right_cumulative) OVER (ORDER BY cw.year),
-                0
-        ) AS left_cumulative
-      FROM year_w cw
-    ),
-    chosen_year AS (
-      /*
-         Pick the single year whose interval covers r % total_weight.
-         This always returns exactly one row.
-      */
-      SELECT
-        cw2.year
-      FROM year_w2 cw2
-           CROSS JOIN CONSTANTS c
-      WHERE c.SEED % ROUND(1367 * cw2.total_weight)::BIGINT BETWEEN 1367 * cw2.left_cumulative AND 1367 * cw2.right_cumulative
-      LIMIT 1
-    ),
-
-/* ---------------------------------------------------------------------------
-   2) From that chosen year, select random photos:
-      - Only photos with quality >= 0
-      - Weight = 1 + normalized_quality_score
-      - Enforce 15min min separation
-      - Return up to 12 total
-      - Sort final results by timestamp
---------------------------------------------------------------------------- */
-    data AS (
-      /* Pull assets in the chosen year and define the new weight. */
-      SELECT
-        ad.id,
-        ad.ts,
-        1 + COALESCE(ad.normalized_quality_score, 0) AS weight
-      FROM asset_analysis ad
-           JOIN chosen_year cc ON EXTRACT(YEAR FROM ad.ts) = cc.year
-    ),
-    w AS (
-      /* Compute total_weight across these photos, plus their running total. */
-      SELECT
-        d.id,
-        d.ts,
-        d.weight,
-        SUM(d.weight) OVER ()              AS total_weight,
-        SUM(d.weight) OVER (ORDER BY d.ts) AS right_cumulative
-      FROM data d
-    ),
-    w2 AS (
-      /* LAG(...) to define each row's [left_cumulative, right_cumulative). */
-      SELECT
-        w.id,
-        w.ts,
-        w.weight,
-        w.total_weight,
-        w.right_cumulative,
-        COALESCE(LAG(w.right_cumulative) OVER (ORDER BY w.ts), 0) AS left_cumulative
-      FROM w
-    ),
-    candidates AS (
-      /*
-         For each random draw, find the photo whose [left_cumulative, right_cumulative)
-         covers r % total_weight. Order them by draw_number so we can filter by
-         “first come, first served” below.
-      */
-      SELECT
-        i AS draw_number,
-        w2.id,
-        w2.ts
+        SELECT
+            i AS draw_number,
+            w2.id,
+            w2.ts
         FROM w2
-         CROSS JOIN CONSTANTS c
-         JOIN generate_series(0, 2 * c.RESULT_LIMIT) i
-              ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) % ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
+             CROSS JOIN CONSTANTS c
+             JOIN GENERATE_SERIES(0, 2 * c.RESULT_LIMIT) i
+                  ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) %
+                     ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
         ORDER BY draw_number
     ),
     candidates_with_prev AS (
@@ -526,7 +116,7 @@ export const memorylaneYearQuery = `
             a.ts,
             LAG(a.ts) OVER (ORDER BY a.ts) AS prev_ts
         FROM candidates a
-        CROSS JOIN CONSTANTS c
+             CROSS JOIN CONSTANTS c
     ),
     filtered_candidates AS (
         SELECT
@@ -535,103 +125,459 @@ export const memorylaneYearQuery = `
             sc.ts,
             ROW_NUMBER() OVER (ORDER BY sc.draw_number) AS row_number
         FROM candidates_with_prev sc
-        CROSS JOIN CONSTANTS c
-        WHERE sc.prev_ts IS NULL
-           OR sc.ts - sc.prev_ts >= c.MIN_TIME_BETWEEN_PHOTOS
+             CROSS JOIN CONSTANTS c
+        WHERE
+             sc.prev_ts IS NULL
+          OR sc.ts - sc.prev_ts >= c.MIN_TIME_BETWEEN_PHOTOS
         ORDER BY sc.draw_number
     )
 
-/* ---------------------------------------------------------------------------
-   Final selection: up to 12 photos, sorted by time
---------------------------------------------------------------------------- */
-  SELECT
+
+SELECT
+    fc.id,
+    cc.cluster_id,
+    cc.cluster_start,
+    cc.cluster_end,
+    cc.cluster_location_distribution
+FROM filtered_candidates fc
+     CROSS JOIN CONSTANTS c
+     CROSS JOIN chosen_cluster cc
+WHERE
+    fc.row_number <= c.RESULT_LIMIT
+ORDER BY fc.ts
+`;
+
+export const memorylanePersonQuery = `WITH
+    CONSTANTS AS (
+        SELECT
+            $1::BIGINT            AS SEED,
+            $2::INT               AS RESULT_LIMIT,
+            $3::uuid[]            AS USER_IDS,
+            INTERVAL '15 minutes' AS MIN_TIME_BETWEEN_PHOTOS,
+            2 * $2::INT           AS MIN_PICTURES_PER_PERSON
+    ),
+
+    person_data AS (
+        SELECT
+            p.id                               AS person_id,
+            p.name                             AS person_name,
+            COUNT(DISTINCT af.id)              AS photo_count,
+            SQRT(COUNT(DISTINCT af.id)::FLOAT) AS weight
+        FROM person p
+             JOIN asset_faces af ON p.id = af."personId"
+             JOIN asset_analysis aa ON af."assetId" = aa.id
+             CROSS JOIN CONSTANTS co
+        WHERE
+              p."ownerId" = ANY (co.USER_IDS)
+          AND COALESCE(aa.normalized_quality_score, 0) >= 0
+        GROUP BY p.id, p.name, co.MIN_PICTURES_PER_PERSON
+        HAVING
+            COUNT(DISTINCT af.id) > co.MIN_PICTURES_PER_PERSON
+    ),
+    person_w AS (
+        SELECT
+            pd.person_id,
+            pd.person_name,
+            pd.weight,
+            SUM(pd.weight) OVER ()                      AS total_weight,
+            SUM(pd.weight) OVER (ORDER BY pd.person_id) AS right_cumulative
+        FROM person_data pd
+    ),
+    person_w2 AS (
+        SELECT
+            pw.person_id,
+            pw.person_name,
+            pw.weight,
+            pw.total_weight,
+            pw.right_cumulative,
+            COALESCE(LAG(pw.right_cumulative) OVER (ORDER BY pw.person_id), 0) AS left_cumulative
+        FROM person_w pw
+    ),
+
+    chosen_person AS (
+        SELECT
+            pw2.person_id,
+            pw2.person_name
+        FROM person_w2 pw2
+             CROSS JOIN CONSTANTS c
+        WHERE
+            c.SEED % ROUND(1367 * pw2.total_weight)::BIGINT BETWEEN 1367 * pw2.left_cumulative AND 1367 * pw2.right_cumulative
+        LIMIT 1
+    ),
+
+    data AS (
+        SELECT
+            aa.id,
+            aa.ts,
+            1 + COALESCE(aa.normalized_quality_score, 0) AS weight
+        FROM asset_analysis aa
+             JOIN asset_faces af ON aa.id = af."assetId"
+             JOIN chosen_person cp ON af."personId" = cp.person_id
+        WHERE
+            aa.normalized_quality_score >= 0
+    ),
+    w AS (
+        SELECT
+            d.id,
+            d.ts,
+            d.weight,
+            SUM(d.weight) OVER ()              AS total_weight,
+            SUM(d.weight) OVER (ORDER BY d.ts) AS right_cumulative
+        FROM data d
+    ),
+    w2 AS (
+        SELECT
+            w.id,
+            w.ts,
+            w.weight,
+            w.total_weight,
+            w.right_cumulative,
+            COALESCE(LAG(w.right_cumulative) OVER (ORDER BY w.ts), 0) AS left_cumulative
+        FROM w
+    ),
+    candidates AS (
+        SELECT
+            i AS draw_number,
+            w2.id,
+            w2.ts
+        FROM w2
+             CROSS JOIN CONSTANTS c
+             JOIN GENERATE_SERIES(0, 2 * c.RESULT_LIMIT) i
+                  ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) %
+                     ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
+        ORDER BY draw_number
+    ),
+    candidates_with_prev AS (
+        SELECT
+            a.draw_number,
+            a.id,
+            a.ts,
+            LAG(a.ts) OVER (ORDER BY a.ts) AS prev_ts
+        FROM candidates a
+             CROSS JOIN CONSTANTS c
+    ),
+    filtered_candidates AS (
+        SELECT
+            sc.draw_number,
+            sc.id,
+            sc.ts,
+            ROW_NUMBER() OVER (ORDER BY sc.draw_number) AS row_number
+        FROM candidates_with_prev sc
+             CROSS JOIN CONSTANTS c
+        WHERE
+             sc.prev_ts IS NULL
+          OR sc.ts - sc.prev_ts >= c.MIN_TIME_BETWEEN_PHOTOS
+        ORDER BY sc.draw_number
+    )
+
+
+SELECT
+    fc.id,
+    cp.person_name
+FROM filtered_candidates fc
+     CROSS JOIN CONSTANTS c
+     CROSS JOIN chosen_person cp
+WHERE
+    fc.row_number <= c.RESULT_LIMIT
+ORDER BY draw_number;
+`;
+
+export const memorylaneRecentHighlightsQuery = `WITH
+    CONSTANTS AS (
+        SELECT
+            INTERVAL '3 months' AS LOOKBACK_WINDOW,
+            INTERVAL '6 HOURS'  AS MIN_TIME_BETWEEN_PHOTOS,
+            0.0                 AS MIN_QUALITY_SCORE,
+            $1::BIGINT          AS SEED,
+            $2::INT             AS RESULT_LIMIT,
+            $3::uuid[]          AS USER_IDS
+    ),
+    data AS (
+        SELECT
+            ad.id,
+            ad.ts                           AS ts,
+            1 + ad.normalized_quality_score AS weight
+        FROM asset_analysis AS ad
+             CROSS JOIN CONSTANTS c
+        WHERE
+              ad.ts >= CURRENT_TIMESTAMP - c.LOOKBACK_WINDOW
+          AND ad.normalized_quality_score >= c.MIN_QUALITY_SCORE
+          AND ad."ownerId" = ANY (c.USER_IDS)
+    ),
+    w AS (
+        SELECT
+            d.id,
+            d.ts,
+            d.weight,
+            SUM(d.weight) OVER ()              AS total_weight,
+            SUM(d.weight) OVER (ORDER BY d.ts) AS right_cumulative
+        FROM data d
+    ),
+    w2 AS (
+        SELECT
+            w.id,
+            w.ts,
+            w.weight,
+            w.total_weight,
+            w.right_cumulative,
+            COALESCE(
+                            LAG(w.right_cumulative) OVER (ORDER BY w.ts),
+                            0
+            ) AS left_cumulative
+        FROM w
+    ),
+    candidates AS (
+        SELECT
+            i AS draw_number,
+            w2.id,
+            w2.ts,
+            w2.weight
+        FROM w2
+             CROSS JOIN CONSTANTS c
+             JOIN GENERATE_SERIES(0, 2 * c.RESULT_LIMIT) i
+                  ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) %
+                     ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
+        ORDER BY draw_number
+    ),
+    candidates_with_prev AS (
+        SELECT
+            a.draw_number,
+            a.id,
+            a.ts,
+            LAG(a.ts) OVER (ORDER BY a.ts) AS prev_ts
+        FROM candidates a
+             CROSS JOIN CONSTANTS c
+    ),
+    filtered_candidates AS (
+        SELECT
+            sc.draw_number,
+            sc.id,
+            sc.ts,
+            ROW_NUMBER() OVER (ORDER BY sc.draw_number) AS row_number
+        FROM candidates_with_prev sc
+             CROSS JOIN CONSTANTS c
+        WHERE
+             sc.prev_ts IS NULL
+          OR sc.ts - sc.prev_ts >= c.MIN_TIME_BETWEEN_PHOTOS
+        ORDER BY sc.draw_number
+    )
+
+SELECT
+    id
+FROM filtered_candidates
+     CROSS JOIN CONSTANTS c
+WHERE
+    row_number <= c.RESULT_LIMIT
+ORDER BY draw_number
+`;
+
+export const memorylaneYearQuery = `WITH
+    CONSTANTS AS (
+        SELECT
+            $1::BIGINT            AS SEED,
+            $2::INT               AS RESULT_LIMIT,
+            $3::uuid[]            AS USER_IDS,
+            INTERVAL '15 minutes' AS MIN_TIME_BETWEEN_PHOTOS
+    ),
+
+    year_data AS (
+        SELECT
+            EXTRACT(YEAR FROM ts) AS year,
+            SQRT(COUNT(*))        AS weight
+        FROM asset_analysis c
+             CROSS JOIN CONSTANTS co
+        WHERE
+              c.normalized_quality_score >= 0
+          AND c."ownerId" = ANY (co.USER_IDS)
+        GROUP BY year, co.RESULT_LIMIT
+        HAVING
+            COUNT(*) > co.RESULT_LIMIT
+    ),
+    year_w AS (
+        SELECT
+            cd.year,
+            cd.weight,
+            SUM(cd.weight) OVER ()                 AS total_weight,
+            SUM(cd.weight) OVER (ORDER BY cd.year) AS right_cumulative
+        FROM year_data cd
+    ),
+    year_w2 AS (
+        SELECT
+            cw.year,
+            cw.weight,
+            cw.total_weight,
+            cw.right_cumulative,
+            COALESCE(
+                            LAG(cw.right_cumulative) OVER (ORDER BY cw.year),
+                            0
+            ) AS left_cumulative
+        FROM year_w cw
+    ),
+    chosen_year AS (
+
+        SELECT
+            cw2.year
+        FROM year_w2 cw2
+             CROSS JOIN CONSTANTS c
+        WHERE
+            c.SEED % ROUND(1367 * cw2.total_weight)::BIGINT BETWEEN 1367 * cw2.left_cumulative AND 1367 * cw2.right_cumulative
+        LIMIT 1
+    ),
+
+    data AS (
+        SELECT
+            ad.id,
+            ad.ts,
+            1 + COALESCE(ad.normalized_quality_score, 0) AS weight
+        FROM asset_analysis ad
+             JOIN chosen_year cc ON EXTRACT(YEAR FROM ad.ts) = cc.year
+    ),
+    w AS (
+        SELECT
+            d.id,
+            d.ts,
+            d.weight,
+            SUM(d.weight) OVER ()              AS total_weight,
+            SUM(d.weight) OVER (ORDER BY d.ts) AS right_cumulative
+        FROM data d
+    ),
+    w2 AS (
+        SELECT
+            w.id,
+            w.ts,
+            w.weight,
+            w.total_weight,
+            w.right_cumulative,
+            COALESCE(LAG(w.right_cumulative) OVER (ORDER BY w.ts), 0) AS left_cumulative
+        FROM w
+    ),
+    candidates AS (
+
+        SELECT
+            i AS draw_number,
+            w2.id,
+            w2.ts
+        FROM w2
+             CROSS JOIN CONSTANTS c
+             JOIN GENERATE_SERIES(0, 2 * c.RESULT_LIMIT) i
+                  ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) %
+                     ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
+        ORDER BY draw_number
+    ),
+    candidates_with_prev AS (
+        SELECT
+            a.draw_number,
+            a.id,
+            a.ts,
+            LAG(a.ts) OVER (ORDER BY a.ts) AS prev_ts
+        FROM candidates a
+             CROSS JOIN CONSTANTS c
+    ),
+    filtered_candidates AS (
+        SELECT
+            sc.draw_number,
+            sc.id,
+            sc.ts,
+            ROW_NUMBER() OVER (ORDER BY sc.draw_number) AS row_number
+        FROM candidates_with_prev sc
+             CROSS JOIN CONSTANTS c
+        WHERE
+             sc.prev_ts IS NULL
+          OR sc.ts - sc.prev_ts >= c.MIN_TIME_BETWEEN_PHOTOS
+        ORDER BY sc.draw_number
+    )
+
+SELECT
     fc.id,
     cc.year
-  FROM filtered_candidates fc
-       CROSS JOIN CONSTANTS c
-       CROSS JOIN chosen_year cc
-  WHERE fc.row_number <= c.RESULT_LIMIT
-  ORDER BY fc.ts
+FROM filtered_candidates fc
+     CROSS JOIN CONSTANTS c
+     CROSS JOIN chosen_year cc
+WHERE
+    fc.row_number <= c.RESULT_LIMIT
+ORDER BY fc.ts
 `;
 
-export const migrationCreateAssetAnalysis = `
-CREATE MATERIALIZED VIEW asset_analysis AS
-WITH final as (
-    SELECT
-        lp.id,
-        lp."ownerId",
-        lp.ts,
-        lp.cluster_id,
-        COALESCE(cs.cluster_cardinality, 0) AS cluster_cardinality,
-        COALESCE(cs.cluster_cardinality_score_ge_0, 0) AS cluster_cardinality_score_ge_0,
-        COALESCE(cs.cluster_cardinality_score_ge_1, 0) AS cluster_cardinality_score_ge_1,
-        COALESCE(cs.cluster_start, lp.ts) AS cluster_start,
-        COALESCE(cs.cluster_end, lp.ts) AS cluster_end,
-        COALESCE(cs.cluster_duration, INTERVAL '0') AS cluster_duration,
-        lp.is_core,
-        lp.is_noise,
-        lp.is_border,
-        CASE WHEN lp.is_noise THEN 'noise' ELSE 'cluster' END AS label,
+export const migrationCreateAssetAnalysis = `CREATE MATERIALIZED VIEW asset_analysis AS
+WITH
+    final AS (
+        SELECT
+            lp.id,
+            lp."ownerId",
+            lp.ts,
 
-        /* Add location data from exif */
-        e.city,
-        e.state,
-        e.country,
+            /* add cluster info */
+            lp.cluster_id,
+            COALESCE(cs.cluster_cardinality, 0)                   AS cluster_cardinality,
+            COALESCE(cs.cluster_cardinality_score_ge_0, 0)        AS cluster_cardinality_score_ge_0,
+            COALESCE(cs.cluster_cardinality_score_ge_1, 0)        AS cluster_cardinality_score_ge_1,
+            COALESCE(cs.cluster_start, lp.ts)                     AS cluster_start,
+            COALESCE(cs.cluster_end, lp.ts)                       AS cluster_end,
+            COALESCE(cs.cluster_duration, INTERVAL '0')           AS cluster_duration,
+            lp.is_core,
+            lp.is_noise,
+            lp.is_border,
+            CASE WHEN lp.is_noise THEN 'noise' ELSE 'cluster' END AS label,
 
-        /* Add quality scores - both raw and normalized using window functions */
-        q.score as quality_score,
-        CASE
-            WHEN q.score IS NOT NULL AND STDDEV(q.score) OVER (PARTITION BY lp."ownerId") != 0
-            THEN (q.score - AVG(q.score) OVER (PARTITION BY lp."ownerId")) / STDDEV(q.score) OVER (PARTITION BY lp."ownerId")
-        END as normalized_quality_score,
+            /* add location data from exif */
+            e.city,
+            e.state,
+            e.country,
 
-        /* Time-based density metrics */
-        COUNT(*) FILTER (WHERE TRUE) OVER (
-            PARTITION BY lp."ownerId"
-            ORDER BY lp.ts
-            RANGE BETWEEN INTERVAL '5 minutes' PRECEDING AND INTERVAL '5 minutes' FOLLOWING
-        ) AS neighbors_5m,
+            /* add quality scores - both raw and normalized using window functions */
+            q.score                                               AS quality_score,
+            CASE
+                WHEN q.score IS NOT NULL AND STDDEV(q.score) OVER (PARTITION BY lp."ownerId") != 0
+                    THEN (q.score - AVG(q.score) OVER (PARTITION BY lp."ownerId")) / STDDEV(q.score) OVER (PARTITION BY lp."ownerId")
+                END                                               AS normalized_quality_score,
 
-        COUNT(*) FILTER (WHERE TRUE) OVER (
-            PARTITION BY lp."ownerId"
-            ORDER BY lp.ts
-            RANGE BETWEEN INTERVAL '1 hour' PRECEDING AND INTERVAL '1 hour' FOLLOWING
-        ) AS neighbors_1h,
+            /* time-based density metrics */
+            COUNT(*) FILTER (WHERE TRUE) OVER (
+                PARTITION BY lp."ownerId"
+                ORDER BY lp.ts
+                RANGE BETWEEN INTERVAL '5 minutes' PRECEDING AND INTERVAL '5 minutes' FOLLOWING
+                )                                                 AS neighbors_5m,
 
-        COUNT(*) FILTER (WHERE TRUE) OVER (
-            PARTITION BY lp."ownerId"
-            ORDER BY lp.ts
-            RANGE BETWEEN INTERVAL '1 day' PRECEDING AND INTERVAL '1 day' FOLLOWING
-        ) AS neighbors_1d,
+            COUNT(*) FILTER (WHERE TRUE) OVER (
+                PARTITION BY lp."ownerId"
+                ORDER BY lp.ts
+                RANGE BETWEEN INTERVAL '1 hour' PRECEDING AND INTERVAL '1 hour' FOLLOWING
+                )                                                 AS neighbors_1h,
 
-        COUNT(*) FILTER (WHERE TRUE) OVER (
-            PARTITION BY lp."ownerId"
-            ORDER BY lp.ts
-            RANGE BETWEEN INTERVAL '7 days' PRECEDING AND INTERVAL '7 days' FOLLOWING
-        ) AS neighbors_7d,
+            COUNT(*) FILTER (WHERE TRUE) OVER (
+                PARTITION BY lp."ownerId"
+                ORDER BY lp.ts
+                RANGE BETWEEN INTERVAL '1 day' PRECEDING AND INTERVAL '1 day' FOLLOWING
+                )                                                 AS neighbors_1d,
 
-        COUNT(*) FILTER (WHERE TRUE) OVER (
-            PARTITION BY lp."ownerId"
-            ORDER BY lp.ts
-            RANGE BETWEEN INTERVAL '30 days' PRECEDING AND INTERVAL '30 days' FOLLOWING
-        ) AS neighbors_30d,
+            COUNT(*) FILTER (WHERE TRUE) OVER (
+                PARTITION BY lp."ownerId"
+                ORDER BY lp.ts
+                RANGE BETWEEN INTERVAL '7 days' PRECEDING AND INTERVAL '7 days' FOLLOWING
+                )                                                 AS neighbors_7d,
 
-        COUNT(*) FILTER (WHERE TRUE) OVER (
-            PARTITION BY lp."ownerId"
-            ORDER BY lp.ts
-            RANGE BETWEEN INTERVAL '180 days' PRECEDING AND INTERVAL '180 days' FOLLOWING
-        ) AS neighbors_180d
+            COUNT(*) FILTER (WHERE TRUE) OVER (
+                PARTITION BY lp."ownerId"
+                ORDER BY lp.ts
+                RANGE BETWEEN INTERVAL '30 days' PRECEDING AND INTERVAL '30 days' FOLLOWING
+                )                                                 AS neighbors_30d,
 
-    FROM asset_dbscan lp
-    LEFT JOIN asset_dbscan_clusters cs ON lp.cluster_id = cs.cluster_id
-    LEFT JOIN exif e ON lp.id = e."assetId"
-    LEFT JOIN quality_assessments q ON lp.id = q."assetId"
-)
-SELECT * FROM final;
+            COUNT(*) FILTER (WHERE TRUE) OVER (
+                PARTITION BY lp."ownerId"
+                ORDER BY lp.ts
+                RANGE BETWEEN INTERVAL '180 days' PRECEDING AND INTERVAL '180 days' FOLLOWING
+                )                                                 AS neighbors_180d
+
+        FROM asset_dbscan lp
+             LEFT JOIN asset_dbscan_clusters cs ON lp.cluster_id = cs.cluster_id
+             LEFT JOIN exif e ON lp.id = e."assetId"
+             LEFT JOIN quality_assessments q ON lp.id = q."assetId"
+    )
+SELECT *
+FROM final;
 `;
 
-export const migrationCreateAssetDbscan = `
-CREATE MATERIALIZED VIEW asset_dbscan AS
+export const migrationCreateAssetDbscan = `CREATE MATERIALIZED VIEW asset_dbscan AS
 WITH
     data AS (
         SELECT DISTINCT ON (COALESCE(a."duplicateId", a.id), a."ownerId")
@@ -642,14 +588,13 @@ WITH
             c.coordinates
         FROM assets a
              JOIN asset_photo_classification c ON a.id = c.id
-        WHERE "deletedAt" IS NULL
+        WHERE
+            "deletedAt" IS NULL
         ORDER BY COALESCE(a."duplicateId", a.id),
                  a."ownerId",
-                 a.id -- Stable, deterministic ordering within each group
+                 a.id
     ),
 
-/* 2) Count how many home/unknown rows are within ±24h => used to mark home/unknown core if >=10 */
-/*    Among home/unknown core points, group them using consecutive gap <=24h */
     home_core_clusters AS (
         WITH
             time_points AS (
@@ -661,16 +606,17 @@ WITH
                         RANGE BETWEEN INTERVAL '1 day' PRECEDING AND INTERVAL '1 day' FOLLOWING
                         ) AS neighbor_count
                 FROM data d
-                WHERE classification IN ('home', 'unknown')
+                WHERE
+                    classification IN ('home', 'unknown')
             ),
             ordered_core AS (
                 SELECT
                     tp.*,
                     LAG(tp.ts) OVER (PARTITION BY tp."ownerId" ORDER BY tp.ts) AS prev_ts
                 FROM time_points tp
-                WHERE tp.neighbor_count >= 10 -- MinPts=10
+                WHERE
+                    tp.neighbor_count >= 10 -- MinPts=10
             )
-        /* Summation of new_cluster_flag => unique core_cluster_id */
         SELECT
             oc.id,
             oc."ownerId",
@@ -685,8 +631,6 @@ WITH
         FROM ordered_core oc
     ),
 
-/* 3) Count how many trip rows are within ±7d => used to mark trip core if >=50 */
-/*    Among trip core points, group them using consecutive gap <=7d */
     trip_core_clusters AS (
         WITH
             time_points AS (
@@ -698,7 +642,8 @@ WITH
                         RANGE BETWEEN INTERVAL '7 days' PRECEDING AND INTERVAL '7 days' FOLLOWING
                         ) AS neighbor_count
                 FROM data d
-                WHERE classification = 'trip'
+                WHERE
+                    classification = 'trip'
             ),
             ordered_core AS (
                 SELECT
@@ -706,9 +651,9 @@ WITH
                     LAG(tp.ts) OVER (PARTITION BY tp."ownerId" ORDER BY tp.ts)          AS prev_ts,
                     LAG(tp.coordinates) OVER (PARTITION BY tp."ownerId" ORDER BY tp.ts) AS prev_coord
                 FROM time_points tp
-                WHERE tp.neighbor_count >= 50 -- MinPts=50
+                WHERE
+                    tp.neighbor_count >= 50 -- MinPts=50
             )
-        /* Summation of new_cluster_flag => unique core_cluster_id */
         SELECT
             oc.id,
             oc."ownerId",
@@ -736,7 +681,8 @@ WITH
             MAX(ts) AS core_cluster_end
         FROM trip_core_clusters
         GROUP BY core_cluster_id, "ownerId"
-        HAVING COUNT(*) > 20
+        HAVING
+            COUNT(*) > 20
     ),
 
     assign_unknown_to_overlapping_trip AS (
@@ -746,13 +692,13 @@ WITH
             MIN(s.core_cluster_id) AS trip_core_cluster_id
         FROM data d
              JOIN trip_core_cluster_stats s ON s."ownerId" = d."ownerId"
-        WHERE classification = 'unknown'
+        WHERE
+              classification = 'unknown'
           AND ts BETWEEN core_cluster_start AND core_cluster_end
         GROUP BY id
     ),
 
     all_points AS (
-        /* Merge core info back to *all* points, so core rows have home/trip cluster_id, others = NULL */
         SELECT
             d.id,
             d."ownerId",
@@ -785,12 +731,7 @@ WITH
         FROM all_points
     ),
 
-/*
-  6) For convenience, label each row as core/border/noise.
-     - core => is_core = TRUE
-     - noise => cluster_id = -1
-     - border => not core AND not noise
-*/
+
     labeled_points AS (
         SELECT
             cca.id,
@@ -806,12 +747,7 @@ SELECT *
 FROM labeled_points;
 `;
 
-export const migrationCreateAssetDbscanClusters = `
-/*
-     Gather cluster-level stats (start, end, cardinality, duration).
-     We skip cluster_id = -1, because that's noise.
-*/
-CREATE MATERIALIZED VIEW asset_dbscan_clusters AS
+export const migrationCreateAssetDbscanClusters = `CREATE MATERIALIZED VIEW asset_dbscan_clusters AS
 WITH
     cluster_data AS (
         SELECT
@@ -819,8 +755,8 @@ WITH
             ad."ownerId",
             ad.ts,
             q.score,
-            COALESCE(e.city, 'unknown') AS city,
-            COALESCE(e.state, 'unknown') AS state,
+            COALESCE(e.city, 'unknown')    AS city,
+            COALESCE(e.state, 'unknown')   AS state,
             COALESCE(e.country, 'unknown') AS country
         FROM asset_dbscan ad
              LEFT JOIN exif e ON ad.id = e."assetId"
@@ -853,7 +789,8 @@ WITH
             COUNT(*) FILTER (WHERE normalized_score >= 0) AS cluster_cardinality_score_ge_0,
             COUNT(*) FILTER (WHERE normalized_score >= 1) AS cluster_cardinality_score_ge_1
         FROM normalized_scores cs
-        WHERE cluster_id != -1
+        WHERE
+            cluster_id != -1
         GROUP BY cluster_id, "ownerId"
     ),
 
@@ -866,7 +803,8 @@ WITH
                     city,
                     COUNT(*) AS city_count
                 FROM normalized_scores
-                WHERE cluster_id != -1
+                WHERE
+                    cluster_id != -1
                 GROUP BY cluster_id, "ownerId", city
             ),
             city_totals AS (
@@ -875,7 +813,8 @@ WITH
                     "ownerId",
                     COUNT(*) AS total_cities
                 FROM normalized_scores
-                WHERE cluster_id != -1
+                WHERE
+                    cluster_id != -1
                 GROUP BY cluster_id, "ownerId"
             )
         SELECT
@@ -883,8 +822,8 @@ WITH
             cc."ownerId",
             JSONB_OBJECT_AGG(cc.city, ROUND((cc.city_count::DECIMAL / ct.total_cities), 4)) AS cities
         FROM city_counts cc
-        JOIN city_totals ct
-            ON cc.cluster_id = ct.cluster_id AND cc."ownerId" = ct."ownerId"
+             JOIN city_totals ct
+                  ON cc.cluster_id = ct.cluster_id AND cc."ownerId" = ct."ownerId"
         GROUP BY cc.cluster_id, cc."ownerId"
     ),
 
@@ -897,7 +836,8 @@ WITH
                     state,
                     COUNT(*) AS state_count
                 FROM normalized_scores
-                WHERE cluster_id != -1
+                WHERE
+                    cluster_id != -1
                 GROUP BY cluster_id, "ownerId", state
             ),
             state_totals AS (
@@ -906,16 +846,17 @@ WITH
                     "ownerId",
                     COUNT(*) AS total_states
                 FROM normalized_scores
-                WHERE cluster_id != -1
+                WHERE
+                    cluster_id != -1
                 GROUP BY cluster_id, "ownerId"
-    )
+            )
         SELECT
             sc.cluster_id,
             sc."ownerId",
             JSONB_OBJECT_AGG(sc.state, ROUND((sc.state_count::DECIMAL / st.total_states), 4)) AS states
         FROM state_counts sc
-        JOIN state_totals st
-            ON sc.cluster_id = st.cluster_id AND sc."ownerId" = st."ownerId"
+             JOIN state_totals st
+                  ON sc.cluster_id = st.cluster_id AND sc."ownerId" = st."ownerId"
         GROUP BY sc.cluster_id, sc."ownerId"
     ),
 
@@ -928,7 +869,8 @@ WITH
                     country,
                     COUNT(*) AS country_count
                 FROM normalized_scores
-                WHERE cluster_id != -1
+                WHERE
+                    cluster_id != -1
                 GROUP BY cluster_id, "ownerId", country
             ),
             country_totals AS (
@@ -937,7 +879,8 @@ WITH
                     "ownerId",
                     COUNT(*) AS total_countries
                 FROM normalized_scores
-                WHERE cluster_id != -1
+                WHERE
+                    cluster_id != -1
                 GROUP BY cluster_id, "ownerId"
             )
         SELECT
@@ -945,8 +888,8 @@ WITH
             cc."ownerId",
             JSONB_OBJECT_AGG(cc.country, ROUND((cc.country_count::DECIMAL / ct.total_countries), 4)) AS countries
         FROM country_counts cc
-        JOIN country_totals ct
-            ON cc.cluster_id = ct.cluster_id AND cc."ownerId" = ct."ownerId"
+             JOIN country_totals ct
+                  ON cc.cluster_id = ct.cluster_id AND cc."ownerId" = ct."ownerId"
         GROUP BY cc.cluster_id, cc."ownerId"
     ),
 
@@ -954,13 +897,13 @@ WITH
         SELECT
             cb.cluster_id,
             cb."ownerId",
-            COALESCE(ci.cities, '{}'::JSONB) AS cities,
-            COALESCE(st.states, '{}'::JSONB) AS states,
+            COALESCE(ci.cities, '{}'::JSONB)    AS cities,
+            COALESCE(st.states, '{}'::JSONB)    AS states,
             COALESCE(ct.countries, '{}'::JSONB) AS countries
         FROM cluster_basic_stats cb
-        LEFT JOIN cities ci ON cb.cluster_id = ci.cluster_id AND cb."ownerId" = ci."ownerId"
-        LEFT JOIN states st ON cb.cluster_id = st.cluster_id AND cb."ownerId" = st."ownerId"
-        LEFT JOIN countries ct ON cb.cluster_id = ct.cluster_id AND cb."ownerId" = ct."ownerId"
+             LEFT JOIN cities ci ON cb.cluster_id = ci.cluster_id AND cb."ownerId" = ci."ownerId"
+             LEFT JOIN states st ON cb.cluster_id = st.cluster_id AND cb."ownerId" = st."ownerId"
+             LEFT JOIN countries ct ON cb.cluster_id = ct.cluster_id AND cb."ownerId" = ct."ownerId"
     ),
 
     cluster_stats_with_location AS (
@@ -977,8 +920,8 @@ WITH
             cld.states,
             cld.countries
         FROM cluster_basic_stats cb
-        LEFT JOIN cluster_location_distribution cld
-            ON cb.cluster_id = cld.cluster_id AND cb."ownerId" = cld."ownerId"
+             LEFT JOIN cluster_location_distribution cld
+                       ON cb.cluster_id = cld.cluster_id AND cb."ownerId" = cld."ownerId"
     )
 
 SELECT *
@@ -986,8 +929,7 @@ FROM cluster_stats_with_location;
 
 `;
 
-export const migrationCreateAssetHomeDetection = `
-CREATE OR REPLACE VIEW asset_home_detection AS
+export const migrationCreateAssetHomeDetection = `CREATE OR REPLACE VIEW asset_home_detection AS
 WITH
 
 -- 1) Some parameters
@@ -1003,7 +945,6 @@ constants AS (
     -- → 5km ≈ 0.045° - 0.115° → Δ ≈ 9 - 23 bins
 ),
 
--- 2) Original data
 data AS (
     SELECT
         a.id,
@@ -1013,7 +954,8 @@ data AS (
         e.longitude
     FROM assets a
          JOIN exif e ON a.id = e."assetId"
-    WHERE a."deletedAt" IS NULL
+    WHERE
+          a."deletedAt" IS NULL
       AND e.latitude IS NOT NULL
       AND e.longitude IS NOT NULL
 ),
@@ -1032,8 +974,6 @@ binned_data AS (
          CROSS JOIN constants c
 ),
 
--- 3) Collapse photos into "sector-day" rows
---    We'll pick a single representative lat/lon for that (owner, day, bin).
 sector_day AS (
     SELECT
         "ownerId",
@@ -1047,8 +987,6 @@ sector_day AS (
     GROUP BY "ownerId", sector_ts_bin_day, latitude_bin, longitude_bin
 ),
 
--- 5) Self-join the "sector-day" table within radius and within ±90 days
---    This is drastically smaller than joining every photo with every other photo.
 sector_day_pairs AS (
     SELECT DISTINCT
         ca."ownerId",
@@ -1066,8 +1004,6 @@ sector_day_pairs AS (
                   AND earth_distance(ca.coordinates, ph.coordinates) <= radius_m
 ),
 
--- 6) Summarize "scores" at the sector-day level
---    E.g. sum of day differences, or distinct day counts, etc.
 sector_day_scores AS (
     WITH
         sector_day_deltas AS (
@@ -1128,7 +1064,6 @@ sector_day_scores AS (
     FROM metrics
 ),
 
--- 7) Compute a final "score" for each (owner, sector, month)
 final AS (
     WITH
         range AS (
@@ -1193,8 +1128,7 @@ FROM final
 ORDER BY start_day;
 `;
 
-export const migrationCreateAssetPhotoClassification = `
-CREATE OR REPLACE VIEW asset_photo_classification AS
+export const migrationCreateAssetPhotoClassification = `CREATE OR REPLACE VIEW asset_photo_classification AS
 WITH
     constants AS (
         SELECT
@@ -1220,7 +1154,8 @@ WITH
                 END           AS coordinates
         FROM assets a
              LEFT JOIN exif e ON a.id = e."assetId"
-        WHERE a."deletedAt" IS NULL
+        WHERE
+            a."deletedAt" IS NULL
     ),
     min_distances AS (
         SELECT
@@ -1228,7 +1163,8 @@ WITH
             MIN(earth_distance(a.coordinates, h.coordinates)) AS min_distance_meters
         FROM enriched_assets a
              LEFT JOIN home_coords h ON a."ownerId" = h."ownerId" AND a.ts BETWEEN h.start AND h.end
-        WHERE a.coordinates IS NOT NULL
+        WHERE
+            a.coordinates IS NOT NULL
         GROUP BY a.id
     )
 SELECT

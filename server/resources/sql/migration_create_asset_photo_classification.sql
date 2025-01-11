@@ -1,4 +1,3 @@
-
 CREATE OR REPLACE VIEW asset_photo_classification AS
 WITH
     constants AS (
@@ -25,7 +24,8 @@ WITH
                 END           AS coordinates
         FROM assets a
              LEFT JOIN exif e ON a.id = e."assetId"
-        WHERE a."deletedAt" IS NULL
+        WHERE
+            a."deletedAt" IS NULL
     ),
     min_distances AS (
         SELECT
@@ -33,7 +33,8 @@ WITH
             MIN(earth_distance(a.coordinates, h.coordinates)) AS min_distance_meters
         FROM enriched_assets a
              LEFT JOIN home_coords h ON a."ownerId" = h."ownerId" AND a.ts BETWEEN h.start AND h.end
-        WHERE a.coordinates IS NOT NULL
+        WHERE
+            a.coordinates IS NOT NULL
         GROUP BY a.id
     )
 SELECT

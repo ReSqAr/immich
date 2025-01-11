@@ -1,4 +1,3 @@
-
 CREATE MATERIALIZED VIEW asset_dbscan AS
 WITH
     data AS (
@@ -10,14 +9,13 @@ WITH
             c.coordinates
         FROM assets a
              JOIN asset_photo_classification c ON a.id = c.id
-        WHERE "deletedAt" IS NULL
+        WHERE
+            "deletedAt" IS NULL
         ORDER BY COALESCE(a."duplicateId", a.id),
                  a."ownerId",
-                 a.id -- Stable, deterministic ordering within each group
+                 a.id
     ),
 
-/* 2) Count how many home/unknown rows are within ±24h => used to mark home/unknown core if >=10 */
-/*    Among home/unknown core points, group them using consecutive gap <=24h */
     home_core_clusters AS (
         WITH
             time_points AS (
@@ -29,16 +27,17 @@ WITH
                         RANGE BETWEEN INTERVAL '1 day' PRECEDING AND INTERVAL '1 day' FOLLOWING
                         ) AS neighbor_count
                 FROM data d
-                WHERE classification IN ('home', 'unknown')
+                WHERE
+                    classification IN ('home', 'unknown')
             ),
             ordered_core AS (
                 SELECT
                     tp.*,
                     LAG(tp.ts) OVER (PARTITION BY tp."ownerId" ORDER BY tp.ts) AS prev_ts
                 FROM time_points tp
-                WHERE tp.neighbor_count >= 10 -- MinPts=10
+                WHERE
+                    tp.neighbor_count >= 10 -- MinPts=10
             )
-        /* Summation of new_cluster_flag => unique core_cluster_id */
         SELECT
             oc.id,
             oc."ownerId",
@@ -53,8 +52,6 @@ WITH
         FROM ordered_core oc
     ),
 
-/* 3) Count how many trip rows are within ±7d => used to mark trip core if >=50 */
-/*    Among trip core points, group them using consecutive gap <=7d */
     trip_core_clusters AS (
         WITH
             time_points AS (
@@ -66,7 +63,8 @@ WITH
                         RANGE BETWEEN INTERVAL '7 days' PRECEDING AND INTERVAL '7 days' FOLLOWING
                         ) AS neighbor_count
                 FROM data d
-                WHERE classification = 'trip'
+                WHERE
+                    classification = 'trip'
             ),
             ordered_core AS (
                 SELECT
@@ -74,9 +72,9 @@ WITH
                     LAG(tp.ts) OVER (PARTITION BY tp."ownerId" ORDER BY tp.ts)          AS prev_ts,
                     LAG(tp.coordinates) OVER (PARTITION BY tp."ownerId" ORDER BY tp.ts) AS prev_coord
                 FROM time_points tp
-                WHERE tp.neighbor_count >= 50 -- MinPts=50
+                WHERE
+                    tp.neighbor_count >= 50 -- MinPts=50
             )
-        /* Summation of new_cluster_flag => unique core_cluster_id */
         SELECT
             oc.id,
             oc."ownerId",
@@ -104,7 +102,8 @@ WITH
             MAX(ts) AS core_cluster_end
         FROM trip_core_clusters
         GROUP BY core_cluster_id, "ownerId"
-        HAVING COUNT(*) > 20
+        HAVING
+            COUNT(*) > 20
     ),
 
     assign_unknown_to_overlapping_trip AS (
@@ -114,13 +113,13 @@ WITH
             MIN(s.core_cluster_id) AS trip_core_cluster_id
         FROM data d
              JOIN trip_core_cluster_stats s ON s."ownerId" = d."ownerId"
-        WHERE classification = 'unknown'
+        WHERE
+              classification = 'unknown'
           AND ts BETWEEN core_cluster_start AND core_cluster_end
         GROUP BY id
     ),
 
     all_points AS (
-        /* Merge core info back to *all* points, so core rows have home/trip cluster_id, others = NULL */
         SELECT
             d.id,
             d."ownerId",
@@ -153,12 +152,7 @@ WITH
         FROM all_points
     ),
 
-/*
-  6) For convenience, label each row as core/border/noise.
-     - core => is_core = TRUE
-     - noise => cluster_id = -1
-     - border => not core AND not noise
-*/
+
     labeled_points AS (
         SELECT
             cca.id,

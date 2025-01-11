@@ -1,4 +1,3 @@
-
 CREATE OR REPLACE VIEW asset_home_detection AS
 WITH
 
@@ -15,7 +14,6 @@ constants AS (
     -- → 5km ≈ 0.045° - 0.115° → Δ ≈ 9 - 23 bins
 ),
 
--- 2) Original data
 data AS (
     SELECT
         a.id,
@@ -25,7 +23,8 @@ data AS (
         e.longitude
     FROM assets a
          JOIN exif e ON a.id = e."assetId"
-    WHERE a."deletedAt" IS NULL
+    WHERE
+          a."deletedAt" IS NULL
       AND e.latitude IS NOT NULL
       AND e.longitude IS NOT NULL
 ),
@@ -44,8 +43,6 @@ binned_data AS (
          CROSS JOIN constants c
 ),
 
--- 3) Collapse photos into "sector-day" rows
---    We'll pick a single representative lat/lon for that (owner, day, bin).
 sector_day AS (
     SELECT
         "ownerId",
@@ -59,8 +56,6 @@ sector_day AS (
     GROUP BY "ownerId", sector_ts_bin_day, latitude_bin, longitude_bin
 ),
 
--- 5) Self-join the "sector-day" table within radius and within ±90 days
---    This is drastically smaller than joining every photo with every other photo.
 sector_day_pairs AS (
     SELECT DISTINCT
         ca."ownerId",
@@ -78,8 +73,6 @@ sector_day_pairs AS (
                   AND earth_distance(ca.coordinates, ph.coordinates) <= radius_m
 ),
 
--- 6) Summarize "scores" at the sector-day level
---    E.g. sum of day differences, or distinct day counts, etc.
 sector_day_scores AS (
     WITH
         sector_day_deltas AS (
@@ -140,7 +133,6 @@ sector_day_scores AS (
     FROM metrics
 ),
 
--- 7) Compute a final "score" for each (owner, sector, month)
 final AS (
     WITH
         range AS (
