@@ -1241,4 +1241,3 @@ SELECT
 FROM enriched_assets d
      LEFT JOIN min_distances md ON d.id = md.id
      CROSS JOIN constants c;`;
-
