@@ -1,5 +1,6 @@
 import { notificationController, NotificationType } from '$lib/components/shared-components/notification/notification';
 import { defaultLang, langs, locales } from '$lib/constants';
+import { memoryStore } from '$lib/stores/memory.store';
 import { lang } from '$lib/stores/preferences.store';
 import { handleError } from '$lib/utils/handle-error';
 import {
@@ -11,6 +12,7 @@ import {
   getAssetPlaybackPath,
   getAssetThumbnailPath,
   getBaseUrl,
+  getMemoryLanes,
   getPeopleThumbnailPath,
   getUserProfileImagePath,
   JobName,
@@ -477,6 +479,35 @@ export const memoryLaneSubtitle = derived(t, ($t) => {
 export const memoryLaneTitle = derived(t, ($t) => {
   return (memorylane: MemorylaneResponseDto) => generateTitle(memorylane);
 });
+
+export async function loadMemorylanes() {
+  const localTime = new Date();
+  const formattedTime = localTime
+    .toLocaleString('en-US', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+    .replace(',', '');
+  const requests = Array.from({ length: 5 }, (_, i) => ({
+    id: `${formattedTime} #${i}`,
+    limit: 12,
+  }));
+  await Promise.all(
+    requests.map(async (request) => {
+      const response = await getMemoryLanes({ memorylanesBodyDto: { requests: [request] } });
+      memoryStore.update((store) => {
+        const newMemories = response.filter(
+          (newMemory) => !store.some((existingMemory) => memoryLaneID(existingMemory) === memoryLaneID(newMemory)),
+        );
+        return [...store, ...newMemories];
+      });
+    }),
+  );
+}
 
 export const withError = async <T>(fn: () => Promise<T>): Promise<[undefined, T] | [unknown, undefined]> => {
   try {

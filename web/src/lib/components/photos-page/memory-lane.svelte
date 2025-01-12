@@ -4,9 +4,8 @@
   import { AppRoute, QueryParameter } from '$lib/constants';
   import { featureFlags } from '$lib/stores/server-config.store';
   import { memoryStore } from '$lib/stores/memory.store';
-  import { getAssetThumbnailUrl, memoryLaneID, memoryLaneSubtitle, memoryLaneTitle } from '$lib/utils';
+  import { getAssetThumbnailUrl, loadMemorylanes, memoryLaneID, memoryLaneSubtitle, memoryLaneTitle } from '$lib/utils';
   import { getAltText } from '$lib/utils/thumbnail-util';
-  import { getMemoryLanes } from '@immich/sdk';
   import { mdiChevronLeft, mdiChevronRight } from '@mdi/js';
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
@@ -17,33 +16,7 @@
   onMount(async () => {
     if ((!$memoryStore || $memoryStore.length === 0) && $featureFlags.memorylane) {
       onMount(async () => {
-        const localTime = new Date();
-        const formattedTime = localTime
-          .toLocaleString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
-          })
-          .replace(',', '');
-        const requests = Array.from({ length: 5 }, (_, i) => ({
-          id: `${formattedTime} #${i}`,
-          limit: 12,
-        }));
-        await Promise.all(
-          requests.map(async (request) => {
-            const response = await getMemoryLanes({ memorylanesBodyDto: { requests: [request] } });
-            memoryStore.update((store) => {
-              const newMemories = response.filter(
-                (newMemory) =>
-                  !store.some((existingMemory) => memoryLaneID(existingMemory) === memoryLaneID(newMemory)),
-              );
-              return [...store, ...newMemories];
-            });
-          }),
-        );
+        await loadMemorylanes();
       });
     }
   });

@@ -29,7 +29,7 @@
     handlePromiseError,
     memoryLaneTitle,
     memoryLaneSubtitle,
-    memoryLaneID,
+    loadMemorylanes,
   } from '$lib/utils';
   import { fromLocalDateTime } from '$lib/utils/timeline-util';
   import { AssetMediaSize, type AssetResponseDto, type MemorylaneResponseDto, getMemoryLanes } from '@immich/sdk';
@@ -196,34 +196,7 @@
   onMount(async () => {
     if ((!$memoryStore || $memoryStore.length === 0) && $featureFlags.memorylane) {
       onMount(async () => {
-        const localTime = new Date();
-        const formattedTime = localTime
-          .toLocaleString('en-US', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
-          })
-          .replace(',', '');
-
-        const requests = Array.from({ length: 5 }, (_, i) => ({
-          id: `${formattedTime} #${i}`,
-          limit: 12,
-        }));
-        await Promise.all(
-          requests.map(async (request) => {
-            const response = await getMemoryLanes({ memorylanesBodyDto: { requests: [request] } });
-            memoryStore.update((store) => {
-              const newMemories = response.filter(
-                (newMemory) =>
-                  !store.some((existingMemory) => memoryLaneID(existingMemory) === memoryLaneID(newMemory)),
-              );
-              return [...store, ...newMemories];
-            });
-          }),
-        );
+        await loadMemorylanes();
       });
     }
 
