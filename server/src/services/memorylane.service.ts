@@ -321,6 +321,7 @@ export class MemorylaneService extends BaseService {
       case MemorylaneType.CLUSTER: {
         const clusterResult = await this.memorylaneRepository.cluster(userIds, seed, effectiveLimit);
         if (!clusterResult) {
+          this.logger.debug(`Could not find assets for memorylane ${effectiveMemorylane}`)
           return undefined;
         }
 
@@ -336,6 +337,7 @@ export class MemorylaneService extends BaseService {
       case MemorylaneType.PERSON: {
         const personResult = await this.memorylaneRepository.person(userIds, seed, effectiveLimit);
         if (!personResult) {
+          this.logger.debug(`Could not find assets for memorylane ${effectiveMemorylane}`)
           return undefined;
         }
 
@@ -351,6 +353,7 @@ export class MemorylaneService extends BaseService {
       case MemorylaneType.RECENT_HIGHLIGHTS: {
         const recentHighlightsResult = await this.memorylaneRepository.recentHighlight(userIds, seed, effectiveLimit);
         if (!recentHighlightsResult) {
+          this.logger.debug(`Could not find assets for memorylane ${effectiveMemorylane}`)
           return undefined;
         }
 
@@ -366,6 +369,7 @@ export class MemorylaneService extends BaseService {
       case MemorylaneType.THIS_DAY: {
         const thisDayResult = await this.memorylaneRepository.thisDay(userIds, seed, effectiveLimit);
         if (!thisDayResult) {
+          this.logger.debug(`Could not find assets for memorylane ${effectiveMemorylane}`)
           return undefined;
         }
 
@@ -381,6 +385,7 @@ export class MemorylaneService extends BaseService {
       case MemorylaneType.SIMILARITY: {
         const similarityResult = await this.similarity(userIds, seed, effectiveLimit);
         if (!similarityResult) {
+          this.logger.debug(`Could not find assets for memorylane ${effectiveMemorylane}`)
           return undefined;
         }
 
@@ -396,6 +401,7 @@ export class MemorylaneService extends BaseService {
       case MemorylaneType.YEAR: {
         const yearResult = await this.memorylaneRepository.year(userIds, seed, effectiveLimit);
         if (!yearResult) {
+          this.logger.debug(`Could not find assets for memorylane ${effectiveMemorylane}`)
           return undefined;
         }
 
