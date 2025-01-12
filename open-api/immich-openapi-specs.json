@@ -9917,14 +9917,26 @@
             "type": "string"
           }
         },
+        "required": [
+          "clusterID",
+          "endDate",
+          "locations",
+          "startDate"
+        ],
         "type": "object"
       },
       "MemorlanePersonMetadata": {
         "properties": {
+          "personID": {
+            "type": "string"
+          },
           "personName": {
             "type": "string"
           }
         },
+        "required": [
+          "personID"
+        ],
         "type": "object"
       },
       "MemorlaneRecentHighlightsMetadata": {
@@ -9937,6 +9949,24 @@
             "type": "string"
           }
         },
+        "required": [
+          "category"
+        ],
+        "type": "object"
+      },
+      "MemorlaneThisDayMetadata": {
+        "properties": {
+          "nYearsAgo": {
+            "type": "string"
+          },
+          "year": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "nYearsAgo",
+          "year"
+        ],
         "type": "object"
       },
       "MemorlaneYearMetadata": {
@@ -9945,6 +9975,9 @@
             "type": "string"
           }
         },
+        "required": [
+          "year"
+        ],
         "type": "object"
       },
       "MemoryCreateDto": {
@@ -10126,6 +10159,7 @@
                 "person": "#/components/schemas/MemorlanePersonMetadata",
                 "recent_highlights": "#/components/schemas/MemorlaneRecentHighlightsMetadata",
                 "similarity": "#/components/schemas/MemorlaneSimilarityMetadata",
+                "this_day": "#/components/schemas/MemorlaneThisDayMetadata",
                 "year": "#/components/schemas/MemorlaneYearMetadata"
               },
               "propertyName": "type"
@@ -10142,6 +10176,9 @@
               },
               {
                 "$ref": "#/components/schemas/MemorlaneSimilarityMetadata"
+              },
+              {
+                "$ref": "#/components/schemas/MemorlaneThisDayMetadata"
               },
               {
                 "$ref": "#/components/schemas/MemorlaneYearMetadata"
@@ -10170,6 +10207,7 @@
           "person",
           "recent_highlights",
           "similarity",
+          "this_day",
           "year"
         ],
         "type": "string"
@@ -12453,6 +12491,9 @@
           "similarity": {
             "type": "number"
           },
+          "this_day": {
+            "type": "number"
+          },
           "year": {
             "type": "number"
           }
@@ -12462,6 +12503,7 @@
           "person",
           "recent_highlights",
           "similarity",
+          "this_day",
           "year"
         ],
         "type": "object"

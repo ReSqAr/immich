@@ -46,24 +46,30 @@ export class MemorylanesBodyDto {
 }
 
 export class MemorlaneClusterMetadata {
-  clusterID?: number;
-  startDate?: Date;
-  endDate?: Date;
-  locations?: string[];
+  clusterID!: number;
+  startDate!: Date;
+  endDate!: Date;
+  locations!: string[];
 }
 
 export class MemorlanePersonMetadata {
+  personID!: string;
   personName?: string;
 }
 
 export class MemorlaneRecentHighlightsMetadata {}
 
 export class MemorlaneSimilarityMetadata {
-  category?: string;
+  category!: string;
+}
+
+export class MemorlaneThisDayMetadata {
+  nYearsAgo!: string;
+  year!: string;
 }
 
 export class MemorlaneYearMetadata {
-  year?: string;
+  year!: string;
 }
 
 @ApiExtraModels(
@@ -71,6 +77,7 @@ export class MemorlaneYearMetadata {
   MemorlanePersonMetadata,
   MemorlaneRecentHighlightsMetadata,
   MemorlaneSimilarityMetadata,
+  MemorlaneThisDayMetadata,
   MemorlaneYearMetadata,
 )
 export class MemorylaneResponseDto {
@@ -85,6 +92,7 @@ export class MemorylaneResponseDto {
       { $ref: getSchemaPath(MemorlanePersonMetadata) },
       { $ref: getSchemaPath(MemorlaneRecentHighlightsMetadata) },
       { $ref: getSchemaPath(MemorlaneSimilarityMetadata) },
+      { $ref: getSchemaPath(MemorlaneThisDayMetadata) },
       { $ref: getSchemaPath(MemorlaneYearMetadata) },
     ],
     discriminator: {
@@ -94,6 +102,7 @@ export class MemorylaneResponseDto {
         [MemorylaneType.PERSON]: getSchemaPath(MemorlanePersonMetadata),
         [MemorylaneType.RECENT_HIGHLIGHTS]: getSchemaPath(MemorlaneRecentHighlightsMetadata),
         [MemorylaneType.SIMILARITY]: getSchemaPath(MemorlaneSimilarityMetadata),
+        [MemorylaneType.THIS_DAY]: getSchemaPath(MemorlaneThisDayMetadata),
         [MemorylaneType.YEAR]: getSchemaPath(MemorlaneYearMetadata),
       },
     },
@@ -103,5 +112,6 @@ export class MemorylaneResponseDto {
     | MemorlanePersonMetadata
     | MemorlaneRecentHighlightsMetadata
     | MemorlaneSimilarityMetadata
+    | MemorlaneThisDayMetadata
     | MemorlaneYearMetadata;
 }

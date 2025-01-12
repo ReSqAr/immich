@@ -68,6 +68,7 @@ export enum MemorylaneType {
   PERSON = 'person',
   RECENT_HIGHLIGHTS = 'recent_highlights',
   SIMILARITY = 'similarity',
+  THIS_DAY = 'this_day',
   YEAR = 'year',
 }
 

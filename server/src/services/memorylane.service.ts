@@ -7,6 +7,7 @@ import {
   MemorlanePersonMetadata,
   MemorlaneRecentHighlightsMetadata,
   MemorlaneSimilarityMetadata,
+  MemorlaneThisDayMetadata,
   MemorlaneYearMetadata,
   MemorylaneResponseDto,
 } from 'src/dtos/memorylane.dto';
@@ -146,12 +147,7 @@ async function stringToSignedSHA32(str: string): Promise<number> {
   const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
   const view = new DataView(hashBuffer);
 
-  return (
-    view.getUint32(0) % 2 ** 31 ^
-    view.getUint32(4) % 2 ** 31 ^
-    view.getUint32(8) % 2 ** 31 ^
-    view.getUint32(12) % 2 ** 31
-  );
+  return (view.getUint32(0) ^ view.getUint32(4) ^ view.getUint32(8) ^ view.getUint32(12)) % 2 ** 31;
 }
 
 const MIN_TIME_BETWEEN_PHOTOS = 15 * 60 * 1000;
@@ -343,11 +339,11 @@ export class MemorylaneService extends BaseService {
           return undefined;
         }
 
-        const { assetIds, personName } = personResult;
+        const { assetIds, personName, personID } = personResult;
         result = {
           id,
           type: MemorylaneType.PERSON,
-          metadata: { personName } as MemorlanePersonMetadata,
+          metadata: { personName, personID } as MemorlanePersonMetadata,
           assets: await this.loadAssetIds(assetIds),
         };
         break;
@@ -363,6 +359,21 @@ export class MemorylaneService extends BaseService {
           id,
           type: MemorylaneType.RECENT_HIGHLIGHTS,
           metadata: {} as MemorlaneRecentHighlightsMetadata,
+          assets: await this.loadAssetIds(assetIds),
+        };
+        break;
+      }
+      case MemorylaneType.THIS_DAY: {
+        const thisDayResult = await this.memorylaneRepository.thisDay(userIds, seed, effectiveLimit);
+        if (!thisDayResult) {
+          return undefined;
+        }
+
+        const { assetIds, nYearsAgo, year } = thisDayResult;
+        result = {
+          id,
+          type: MemorylaneType.THIS_DAY,
+          metadata: { nYearsAgo, year } as MemorlaneThisDayMetadata,
           assets: await this.loadAssetIds(assetIds),
         };
         break;

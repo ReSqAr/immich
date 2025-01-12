@@ -7,12 +7,14 @@ import {
   MemoryLaneCluster,
   MemoryLanePerson,
   MemoryLaneRecentHighlights,
+  MemoryLaneThisDay,
   MemoryLaneYear,
 } from 'src/interfaces/memorylane.interface';
 import {
   memorylaneClusterQuery,
   memorylanePersonQuery,
   memorylaneRecentHighlightsQuery,
+  memorylaneThisDayQuery,
   memorylaneYearQuery,
 } from 'src/resources/sql';
 import { Repository } from 'typeorm';
@@ -122,8 +124,8 @@ export class MemorylaneRepository implements IMemorylaneRepository {
       return undefined;
     }
 
-    const { person_name: personName } = result[0];
-    return { personName, assetIds };
+    const { person_id: personID, person_name: personName } = result[0];
+    return { personID, personName, assetIds };
   }
 
   async recentHighlight(
@@ -139,6 +141,18 @@ export class MemorylaneRepository implements IMemorylaneRepository {
     }
 
     return { assetIds };
+  }
+
+  async thisDay(userIds: string[], seed: number, limit: number): Promise<MemoryLaneThisDay | undefined> {
+    const result = await this.assetRepository.query(memorylaneThisDayQuery, [seed, limit, userIds]);
+    const assetIds: string[] = result.map(({ id }: { id: string }) => id);
+
+    if (!result || result.length === 0) {
+      return undefined;
+    }
+
+    const { year, n_years_ago: nYearsAgo } = result[0];
+    return { year: `${year}`, nYearsAgo: `${nYearsAgo}`, assetIds };
   }
 
   async year(userIds: string[], seed: number, limit: number): Promise<MemoryLaneYear | undefined> {

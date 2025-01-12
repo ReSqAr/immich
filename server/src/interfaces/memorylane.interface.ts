@@ -5,20 +5,25 @@ interface Memorylane {
 }
 
 export interface MemoryLaneCluster extends Memorylane {
-  clusterID: number | undefined;
-  startDate: Date | undefined;
-  endDate: Date | undefined;
+  clusterID: number;
+  startDate: Date;
+  endDate: Date;
   locations: string[];
 }
 
 export interface MemoryLanePerson extends Memorylane {
+  personID: string;
   personName: string | undefined;
 }
-
 export type MemoryLaneRecentHighlights = Memorylane;
 
+export interface MemoryLaneThisDay extends Memorylane {
+  year: string;
+  nYearsAgo: string;
+}
+
 export interface MemoryLaneYear extends Memorylane {
-  year: string | undefined;
+  year: string;
 }
 
 export interface IMemorylaneRepository {
@@ -26,5 +31,6 @@ export interface IMemorylaneRepository {
   cluster(userIds: string[], seed: number, limit: number): Promise<MemoryLaneCluster | undefined>;
   person(userIds: string[], seed: number, limit: number): Promise<MemoryLanePerson | undefined>;
   recentHighlight(userIds: string[], seed: number, limit: number): Promise<MemoryLaneRecentHighlights | undefined>;
+  thisDay(userIds: string[], seed: number, limit: number): Promise<MemoryLaneThisDay | undefined>;
   year(userIds: string[], seed: number, limit: number): Promise<MemoryLaneYear | undefined>;
 }

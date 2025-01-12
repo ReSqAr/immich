@@ -18,6 +18,7 @@ import {
   type MemorlaneClusterMetadata,
   type MemorlanePersonMetadata,
   type MemorlaneSimilarityMetadata,
+  type MemorlaneThisDayMetadata,
   type MemorlaneYearMetadata,
   type MemorylaneResponseDto,
   MemorylaneType,
@@ -376,9 +377,10 @@ function generateSubtitle(memorylane: MemorylaneResponseDto): string {
     case MemorylaneType.Cluster: {
       const metadata = memorylane.metadata as MemorlaneClusterMetadata;
       const hasLocations = metadata.locations?.length;
-      return hasLocations && metadata.startDate && metadata.endDate
-        ? formatDateRange(metadata.startDate, metadata.endDate)
-        : '';
+      if (!hasLocations) {
+        return '';
+      }
+      return formatDateRange(metadata.startDate, metadata.endDate);
     }
 
     default: {
@@ -394,13 +396,11 @@ function generateTitle(memorylane: MemorylaneResponseDto): string {
   switch (memorylane.type) {
     case MemorylaneType.Cluster: {
       const metadata = memorylane.metadata as MemorlaneClusterMetadata;
-      if (metadata.locations?.length) {
-        return formatLocationList(metadata.locations);
-      }
-      if (metadata.startDate && metadata.endDate) {
+      const hasLocations = metadata.locations?.length;
+      if (!hasLocations) {
         return formatDateRange(metadata.startDate, metadata.endDate);
       }
-      return 'Photo Cluster';
+      return formatLocationList(metadata.locations);
     }
 
     case MemorylaneType.Person: {
@@ -414,7 +414,12 @@ function generateTitle(memorylane: MemorylaneResponseDto): string {
 
     case MemorylaneType.Similarity: {
       const metadata = memorylane.metadata as MemorlaneSimilarityMetadata;
-      return metadata.category || 'Similar Photos';
+      return metadata.category;
+    }
+
+    case MemorylaneType.ThisDay: {
+      const metadata = memorylane.metadata as MemorlaneThisDayMetadata;
+      return `${metadata.nYearsAgo} years ago`;
     }
 
     case MemorylaneType.Year: {
@@ -447,6 +452,11 @@ export function memoryLaneID(memorylane: MemorylaneResponseDto) {
     case MemorylaneType.Similarity: {
       const metadata = memorylane.metadata as MemorlaneSimilarityMetadata;
       return `similarity-${metadata.category}`;
+    }
+
+    case MemorylaneType.ThisDay: {
+      const metadata = memorylane.metadata as MemorlaneThisDayMetadata;
+      return `this-day-${metadata.year}`;
     }
 
     case MemorylaneType.Year: {

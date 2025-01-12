@@ -437,6 +437,9 @@ class SystemConfigMemorylaneWeightsDto implements Record<MemorylaneType, number>
   similarity!: number;
 
   @IsNumber()
+  this_day!: number;
+
+  @IsNumber()
   year!: number;
 }
 

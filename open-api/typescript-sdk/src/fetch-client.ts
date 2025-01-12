@@ -645,20 +645,25 @@ export type MemorylanesBodyDto = {
     requests: MemorylaneRequest[];
 };
 export type MemorlaneClusterMetadata = {
-    clusterID?: number;
-    endDate?: string;
-    locations?: string[];
-    startDate?: string;
+    clusterID: number;
+    endDate: string;
+    locations: string[];
+    startDate: string;
 };
 export type MemorlanePersonMetadata = {
+    personID: string;
     personName?: string;
 };
 export type MemorlaneRecentHighlightsMetadata = {};
 export type MemorlaneSimilarityMetadata = {
-    category?: string;
+    category: string;
+};
+export type MemorlaneThisDayMetadata = {
+    nYearsAgo: string;
+    year: string;
 };
 export type MemorlaneYearMetadata = {
-    year?: string;
+    year: string;
 };
 export type MemorylaneResponseDto = {
     assets: AssetResponseDto[];
@@ -672,6 +677,8 @@ export type MemorylaneResponseDto = {
     } & MemorlaneRecentHighlightsMetadata) | ({
         "type": "similarity";
     } & MemorlaneSimilarityMetadata) | ({
+        "type": "this_day";
+    } & MemorlaneThisDayMetadata) | ({
         "type": "year";
     } & MemorlaneYearMetadata);
     "type": MemorylaneType;
@@ -1249,6 +1256,7 @@ export type SystemConfigMemorylaneWeightsDto = {
     person: number;
     recent_highlights: number;
     similarity: number;
+    this_day: number;
     year: number;
 };
 export type SystemConfigMemorylaneDto = {
@@ -3599,6 +3607,7 @@ export enum MemorylaneType {
     Person = "person",
     RecentHighlights = "recent_highlights",
     Similarity = "similarity",
+    ThisDay = "this_day",
     Year = "year"
 }
 export enum PartnerDirection {
