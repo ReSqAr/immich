@@ -64,7 +64,7 @@ WITH
                     d.ts,
                     1 + d.normalized_quality_score AS weight
                 FROM data d
-                     JOIN selected_year sy USING (year)
+                     JOIN selected_year USING (year)
             ),
 
             weighted_data_running_sum AS (
@@ -127,7 +127,7 @@ WITH
 
 SELECT
     sa.id,
-    sy.year
+    s.year
 FROM selected_assets sa
-     CROSS JOIN selected_year sy
+     CROSS JOIN selected_year s
 ORDER BY sa.ts

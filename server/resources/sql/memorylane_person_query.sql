@@ -4,130 +4,154 @@ WITH
             $1::BIGINT            AS SEED,
             $2::INT               AS RESULT_LIMIT,
             $3::uuid[]            AS USER_IDS,
-            INTERVAL '15 minutes' AS MIN_TIME_BETWEEN_PHOTOS,
-            2 * $2::INT           AS MIN_PICTURES_PER_PERSON
+            INTERVAL '15 minutes' AS MIN_TIME_BETWEEN_PHOTOS
     ),
 
     person_data AS (
         SELECT
-            p.id                               AS person_id,
-            p.name                             AS person_name,
-            COUNT(DISTINCT af.id)              AS photo_count,
-            SQRT(COUNT(DISTINCT af.id)::FLOAT) AS weight
+            p.id                  AS person_id,
+            p.name                AS person_name,
+            p."ownerId"           AS owner_id,
+            COUNT(DISTINCT af.id) AS cardinality_score_ge_0
         FROM person p
              JOIN asset_faces af ON p.id = af."personId"
              JOIN asset_analysis aa ON af."assetId" = aa.id
              CROSS JOIN CONSTANTS co
         WHERE
               p."ownerId" = ANY (co.USER_IDS)
-          AND COALESCE(aa.normalized_quality_score, 0) >= 0
-        GROUP BY p.id, p.name, co.MIN_PICTURES_PER_PERSON
-        HAVING
-            COUNT(DISTINCT af.id) > co.MIN_PICTURES_PER_PERSON
-    ),
-    person_w AS (
-        SELECT
-            pd.person_id,
-            pd.person_name,
-            pd.weight,
-            SUM(pd.weight) OVER ()                      AS total_weight,
-            SUM(pd.weight) OVER (ORDER BY pd.person_id) AS right_cumulative
-        FROM person_data pd
-    ),
-    person_w2 AS (
-        SELECT
-            pw.person_id,
-            pw.person_name,
-            pw.weight,
-            pw.total_weight,
-            pw.right_cumulative,
-            COALESCE(LAG(pw.right_cumulative) OVER (ORDER BY pw.person_id), 0) AS left_cumulative
-        FROM person_w pw
+          AND aa.normalized_quality_score >= 0
+        GROUP BY p.id, p.name
     ),
 
-    chosen_person AS (
+    asset_data AS (
         SELECT
-            pw2.person_id,
-            pw2.person_name
-        FROM person_w2 pw2
+            ad.id,
+            ad.ts,
+            af."personId" AS person_id,
+            ad."ownerId"  AS owner_id,
+            ad.normalized_quality_score
+        FROM asset_analysis ad
+             JOIN asset_faces af ON ad.id = af."assetId"
+             CROSS JOIN CONSTANTS co
+        WHERE
+              ad.normalized_quality_score >= 0
+          AND ad."ownerId" = ANY (co.USER_IDS)
+    ),
+
+    selected_person AS (
+        WITH
+            weighted_data AS (
+                SELECT
+                    d.person_id,
+                    d.person_name,
+                    d.owner_id,
+                    SQRT(d.cardinality_score_ge_0) AS weight
+                FROM person_data d
+                     CROSS JOIN CONSTANTS c
+                WHERE
+                    d.cardinality_score_ge_0 >= c.RESULT_LIMIT
+            ),
+
+            weighted_data_running_sum AS (
+                SELECT
+                    wd.*,
+                    SUM(wd.weight) OVER ()                      AS total_weight,
+                    SUM(wd.weight) OVER (ORDER BY wd.person_id) AS right_cumulative
+                FROM weighted_data wd
+            ),
+
+            weighted_data_bands AS (
+                SELECT
+                    wdrs.*,
+                    COALESCE(LAG(wdrs.right_cumulative) OVER (ORDER BY wdrs.person_id), 0) AS left_cumulative
+                FROM weighted_data_running_sum wdrs
+            )
+
+        SELECT
+            wdb.person_id,
+            wdb.person_name,
+            wdb.owner_id
+        FROM weighted_data_bands wdb
              CROSS JOIN CONSTANTS c
         WHERE
-            c.SEED % ROUND(1367 * pw2.total_weight)::BIGINT BETWEEN 1367 * pw2.left_cumulative AND 1367 * pw2.right_cumulative
+            (c.SEED % ROUND(1367 * wdb.total_weight)::BIGINT)
+                BETWEEN 1367 * wdb.left_cumulative AND 1367 * wdb.right_cumulative
         LIMIT 1
     ),
 
-    data AS (
+    selected_assets AS (
+        WITH
+            weighted_data AS (
+                SELECT
+                    d.id,
+                    d.ts,
+                    1 + d.normalized_quality_score AS weight
+                FROM asset_data d
+                     JOIN selected_person USING (person_id, owner_id)
+            ),
+
+            weighted_data_running_sum AS (
+                SELECT
+                    wd.*,
+                    SUM(wd.weight) OVER ()               AS total_weight,
+                    SUM(wd.weight) OVER (ORDER BY wd.ts) AS right_cumulative
+                FROM weighted_data wd
+            ),
+
+            weighted_data_bands AS (
+                SELECT
+                    wdrs.*,
+                    COALESCE(LAG(wdrs.right_cumulative) OVER (ORDER BY wdrs.ts), 0) AS left_cumulative
+                FROM weighted_data_running_sum wdrs
+            ),
+
+            candidates AS (
+                SELECT
+                    i AS draw_number,
+                    wb.id,
+                    wb.ts
+                FROM weighted_data_bands wb
+                     CROSS JOIN CONSTANTS c
+                     JOIN GENERATE_SERIES(0, 2 * c.RESULT_LIMIT) i
+                          ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) % ROUND(1367 * wb.total_weight)::BIGINT
+                              BETWEEN 1367 * wb.left_cumulative AND 1367 * wb.right_cumulative
+            ),
+
+            candidates_with_lookback AS (
+                SELECT
+                    c.draw_number,
+                    c.id,
+                    c.ts,
+                    LAG(c.ts) OVER (ORDER BY c.ts, c.draw_number) AS prev_ts
+                FROM candidates c
+            ),
+
+            filtered_candidates AS (
+                SELECT
+                    ROW_NUMBER() OVER (ORDER BY cwl.draw_number) AS draw_number,
+                    cwl.id,
+                    cwl.ts
+                FROM candidates_with_lookback cwl
+                     CROSS JOIN CONSTANTS c
+                WHERE
+                     cwl.prev_ts IS NULL
+                  OR cwl.ts - cwl.prev_ts >= c.MIN_TIME_BETWEEN_PHOTOS
+            )
+
         SELECT
-            aa.id,
-            aa.ts,
-            1 + COALESCE(aa.normalized_quality_score, 0) AS weight
-        FROM asset_analysis aa
-             JOIN asset_faces af ON aa.id = af."assetId"
-             JOIN chosen_person cp ON af."personId" = cp.person_id
+            saf.draw_number,
+            saf.id,
+            saf.ts
+        FROM filtered_candidates saf
+             CROSS JOIN CONSTANTS c
         WHERE
-            aa.normalized_quality_score >= 0
-    ),
-    w AS (
-        SELECT
-            d.id,
-            d.ts,
-            d.weight,
-            SUM(d.weight) OVER ()              AS total_weight,
-            SUM(d.weight) OVER (ORDER BY d.ts) AS right_cumulative
-        FROM data d
-    ),
-    w2 AS (
-        SELECT
-            w.id,
-            w.ts,
-            w.weight,
-            w.total_weight,
-            w.right_cumulative,
-            COALESCE(LAG(w.right_cumulative) OVER (ORDER BY w.ts), 0) AS left_cumulative
-        FROM w
-    ),
-    candidates AS (
-        SELECT
-            i AS draw_number,
-            w2.id,
-            w2.ts
-        FROM w2
-             CROSS JOIN CONSTANTS c
-             JOIN GENERATE_SERIES(0, 2 * c.RESULT_LIMIT) i
-                  ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) %
-                     ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
-        ORDER BY draw_number
-    ),
-    candidates_with_prev AS (
-        SELECT
-            a.draw_number,
-            a.id,
-            a.ts,
-            LAG(a.ts) OVER (ORDER BY a.ts) AS prev_ts
-        FROM candidates a
-             CROSS JOIN CONSTANTS c
-    ),
-    filtered_candidates AS (
-        SELECT
-            sc.draw_number,
-            sc.id,
-            sc.ts,
-            ROW_NUMBER() OVER (ORDER BY sc.draw_number) AS row_number
-        FROM candidates_with_prev sc
-             CROSS JOIN CONSTANTS c
-        WHERE
-             sc.prev_ts IS NULL
-          OR sc.ts - sc.prev_ts >= c.MIN_TIME_BETWEEN_PHOTOS
-        ORDER BY sc.draw_number
+            saf.draw_number <= c.RESULT_LIMIT
     )
 
-
 SELECT
-    fc.id,
-    cp.person_name
-FROM filtered_candidates fc
-     CROSS JOIN CONSTANTS c
-     CROSS JOIN chosen_person cp
-WHERE
-    fc.row_number <= c.RESULT_LIMIT
-ORDER BY draw_number;
+    sa.id,
+    s.person_id,
+    s.person_name
+FROM selected_assets sa
+     CROSS JOIN selected_person s
+ORDER BY sa.draw_number

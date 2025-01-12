@@ -93,7 +93,7 @@ WITH
                     d.ts,
                     1 + d.normalized_quality_score AS weight
                 FROM asset_data d
-                     JOIN selected_cluster sy USING (cluster_id, owner_id)
+                     JOIN selected_cluster USING (cluster_id, owner_id)
             ),
 
             weighted_data_running_sum AS (
@@ -156,10 +156,10 @@ WITH
 
 SELECT
     sa.id,
-    sc.cluster_id,
-    sc.cluster_start,
-    sc.cluster_end,
-    sc.cluster_location_distribution
+    s.cluster_id,
+    s.cluster_start,
+    s.cluster_end,
+    s.cluster_location_distribution
 FROM selected_assets sa
-     CROSS JOIN selected_cluster sc
+     CROSS JOIN selected_cluster s
 ORDER BY sa.ts
