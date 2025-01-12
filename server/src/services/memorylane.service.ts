@@ -147,7 +147,12 @@ async function stringToSignedSHA32(str: string): Promise<number> {
   const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
   const view = new DataView(hashBuffer);
 
-  return (view.getUint32(0) ^ view.getUint32(4) ^ view.getUint32(8) ^ view.getUint32(12)) % 2 ** 31;
+  return (
+    view.getUint32(0) % 2 ** 31 ^
+    view.getUint32(4) % 2 ** 31 ^
+    view.getUint32(8) % 2 ** 31 ^
+    view.getUint32(12) % 2 ** 31
+  );
 }
 
 const MIN_TIME_BETWEEN_PHOTOS = 15 * 60 * 1000;
