@@ -9,7 +9,9 @@ WITH
 
     data AS (
         SELECT
-            aa.*,
+            aa.id,
+            aa.ts,
+            aa.normalized_quality_score,
             EXTRACT(YEAR FROM aa.ts) AS year
         FROM asset_analysis aa
              CROSS JOIN CONSTANTS c
