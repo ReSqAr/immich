@@ -559,7 +559,7 @@ FROM selected_assets sa
      CROSS JOIN selected_year s
 ORDER BY sa.ts`;
 
-export const migrationCreateAssetAnalysis = `CREATE MATERIALIZED VIEW asset_analysis AS
+export const migration1735468387695CreateAssetAnalysis = `CREATE MATERIALIZED VIEW asset_analysis AS
 WITH
     final AS (
         SELECT
@@ -637,7 +637,7 @@ WITH
 SELECT *
 FROM final;`;
 
-export const migrationCreateAssetDbscan = `CREATE MATERIALIZED VIEW asset_dbscan AS
+export const migration1735468387695CreateAssetDbscan = `CREATE MATERIALIZED VIEW asset_dbscan AS
 WITH
     data AS (
         SELECT DISTINCT ON (COALESCE(a."duplicateId", a.id), a."ownerId")
@@ -806,7 +806,7 @@ WITH
 SELECT *
 FROM labeled_points;`;
 
-export const migrationCreateAssetDbscanClusters = `CREATE MATERIALIZED VIEW asset_dbscan_clusters AS
+export const migration1735468387695CreateAssetDbscanClusters = `CREATE MATERIALIZED VIEW asset_dbscan_clusters AS
 WITH
     cluster_data AS (
         SELECT
@@ -986,7 +986,7 @@ WITH
 SELECT *
 FROM cluster_stats_with_location;`;
 
-export const migrationCreateAssetHomeDetection = `CREATE OR REPLACE VIEW asset_home_detection AS
+export const migration1735468387695CreateAssetHomeDetection = `CREATE OR REPLACE VIEW asset_home_detection AS
 WITH
 
 -- 1) Some parameters
@@ -1184,7 +1184,7 @@ SELECT
 FROM final
 ORDER BY start_day;`;
 
-export const migrationCreateAssetPhotoClassification = `CREATE OR REPLACE VIEW asset_photo_classification AS
+export const migration1735468387695CreateAssetPhotoClassification = `CREATE OR REPLACE VIEW asset_photo_classification AS
 WITH
     constants AS (
         SELECT

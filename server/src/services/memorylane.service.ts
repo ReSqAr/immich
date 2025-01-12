@@ -411,7 +411,18 @@ export class MemorylaneService extends BaseService {
 
   @OnJob({ name: JobName.MEMORYLANE_REFRESH, queue: QueueName.BACKGROUND_TASK })
   async handleRefreshMemorylane({}: JobOf<JobName.QUEUE_IQA_SCORE>): Promise<JobStatus> {
+    const start = Date.now();
+
     await this.memorylaneRepository.refresh();
+
+    this.telemetryRepository.api.addToHistogram(`memorylane.materialised_views.refresh`, Date.now() - start, {
+      description: 'Duration of memorylane materialise views refresh',
+      unit: 'ms',
+      advice: {
+        explicitBucketBoundaries: HISTOGRAM_BUCKETS,
+      },
+    });
+
     return JobStatus.SUCCESS;
   }
 }
