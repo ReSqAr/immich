@@ -7,119 +7,127 @@ WITH
             INTERVAL '15 minutes' AS MIN_TIME_BETWEEN_PHOTOS
     ),
 
-    year_data AS (
+    data AS (
         SELECT
-            EXTRACT(YEAR FROM ts) AS year,
-            SQRT(COUNT(*))        AS weight
-        FROM asset_analysis c
-             CROSS JOIN CONSTANTS co
-        WHERE
-              c.normalized_quality_score >= 0
-          AND c."ownerId" = ANY (co.USER_IDS)
-        GROUP BY year, co.RESULT_LIMIT
-        HAVING
-            COUNT(*) > co.RESULT_LIMIT
-    ),
-    year_w AS (
-        SELECT
-            cd.year,
-            cd.weight,
-            SUM(cd.weight) OVER ()                 AS total_weight,
-            SUM(cd.weight) OVER (ORDER BY cd.year) AS right_cumulative
-        FROM year_data cd
-    ),
-    year_w2 AS (
-        SELECT
-            cw.year,
-            cw.weight,
-            cw.total_weight,
-            cw.right_cumulative,
-            COALESCE(
-                            LAG(cw.right_cumulative) OVER (ORDER BY cw.year),
-                            0
-            ) AS left_cumulative
-        FROM year_w cw
-    ),
-    chosen_year AS (
-
-        SELECT
-            cw2.year
-        FROM year_w2 cw2
+            aa.*,
+            EXTRACT(YEAR FROM aa.ts) AS year
+        FROM asset_analysis aa
              CROSS JOIN CONSTANTS c
         WHERE
-            c.SEED % ROUND(1367 * cw2.total_weight)::BIGINT BETWEEN 1367 * cw2.left_cumulative AND 1367 * cw2.right_cumulative
+              aa."ownerId" = ANY (c.USER_IDS)
+          AND aa.normalized_quality_score >= 0
+    ),
+
+    selected_year AS (
+        WITH
+            weighted_data AS (
+                SELECT
+                    d.year,
+                    SQRT(COUNT(*)) AS weight
+                FROM data d
+                     CROSS JOIN CONSTANTS c
+                GROUP BY d.year, c.RESULT_LIMIT
+                HAVING
+                    COUNT(*) > c.RESULT_LIMIT
+            ),
+
+            weighted_data_running_sum AS (
+                SELECT
+                    wd.*,
+                    SUM(wd.weight) OVER ()                 AS total_weight,
+                    SUM(wd.weight) OVER (ORDER BY wd.year) AS right_cumulative
+                FROM weighted_data wd
+            ),
+
+            weighted_data_bands AS (
+                SELECT
+                    wdrs.*,
+                    COALESCE(LAG(wdrs.right_cumulative) OVER (ORDER BY wdrs.year), 0) AS left_cumulative
+                FROM weighted_data_running_sum wdrs
+            )
+
+        SELECT
+            wdb.year
+        FROM weighted_data_bands wdb
+             CROSS JOIN CONSTANTS c
+        WHERE
+            (c.SEED % ROUND(1367 * wdb.total_weight)::BIGINT)
+                BETWEEN 1367 * wdb.left_cumulative AND 1367 * wdb.right_cumulative
         LIMIT 1
     ),
 
-    data AS (
-        SELECT
-            ad.id,
-            ad.ts,
-            1 + COALESCE(ad.normalized_quality_score, 0) AS weight
-        FROM asset_analysis ad
-             JOIN chosen_year cc ON EXTRACT(YEAR FROM ad.ts) = cc.year
-    ),
-    w AS (
-        SELECT
-            d.id,
-            d.ts,
-            d.weight,
-            SUM(d.weight) OVER ()              AS total_weight,
-            SUM(d.weight) OVER (ORDER BY d.ts) AS right_cumulative
-        FROM data d
-    ),
-    w2 AS (
-        SELECT
-            w.id,
-            w.ts,
-            w.weight,
-            w.total_weight,
-            w.right_cumulative,
-            COALESCE(LAG(w.right_cumulative) OVER (ORDER BY w.ts), 0) AS left_cumulative
-        FROM w
-    ),
-    candidates AS (
+    selected_assets AS (
+        WITH
+            weighted_data AS (
+                SELECT
+                    d.id,
+                    d.ts,
+                    1 + d.normalized_quality_score AS weight
+                FROM data d
+                     JOIN selected_year sy USING (year)
+            ),
+
+            weighted_data_running_sum AS (
+                SELECT
+                    wd.*,
+                    SUM(wd.weight) OVER ()               AS total_weight,
+                    SUM(wd.weight) OVER (ORDER BY wd.ts) AS right_cumulative
+                FROM weighted_data wd
+            ),
+
+            weighted_data_bands AS (
+                SELECT
+                    wdrs.*,
+                    COALESCE(LAG(wdrs.right_cumulative) OVER (ORDER BY wdrs.ts), 0) AS left_cumulative
+                FROM weighted_data_running_sum wdrs
+            ),
+
+            candidates AS (
+                SELECT
+                    i AS draw_number,
+                    wb.id,
+                    wb.ts
+                FROM weighted_data_bands wb
+                     CROSS JOIN CONSTANTS c
+                     JOIN GENERATE_SERIES(0, 2 * c.RESULT_LIMIT) i
+                          ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) % ROUND(1367 * wb.total_weight)::BIGINT
+                              BETWEEN 1367 * wb.left_cumulative AND 1367 * wb.right_cumulative
+            ),
+
+            candidates_with_lookback AS (
+                SELECT
+                    c.draw_number,
+                    c.id,
+                    c.ts,
+                    LAG(c.ts) OVER (ORDER BY c.ts, c.draw_number) AS prev_ts
+                FROM candidates c
+            ),
+
+            filtered_candidates AS (
+                SELECT
+                    ROW_NUMBER() OVER (ORDER BY cwl.draw_number) AS draw_number,
+                    cwl.id,
+                    cwl.ts
+                FROM candidates_with_lookback cwl
+                     CROSS JOIN CONSTANTS c
+                WHERE
+                     cwl.prev_ts IS NULL
+                  OR cwl.ts - cwl.prev_ts >= c.MIN_TIME_BETWEEN_PHOTOS
+            )
 
         SELECT
-            i AS draw_number,
-            w2.id,
-            w2.ts
-        FROM w2
-             CROSS JOIN CONSTANTS c
-             JOIN GENERATE_SERIES(0, 2 * c.RESULT_LIMIT) i
-                  ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) %
-                     ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
-        ORDER BY draw_number
-    ),
-    candidates_with_prev AS (
-        SELECT
-            a.draw_number,
-            a.id,
-            a.ts,
-            LAG(a.ts) OVER (ORDER BY a.ts) AS prev_ts
-        FROM candidates a
-             CROSS JOIN CONSTANTS c
-    ),
-    filtered_candidates AS (
-        SELECT
-            sc.draw_number,
-            sc.id,
-            sc.ts,
-            ROW_NUMBER() OVER (ORDER BY sc.draw_number) AS row_number
-        FROM candidates_with_prev sc
+            saf.draw_number,
+            saf.id,
+            saf.ts
+        FROM filtered_candidates saf
              CROSS JOIN CONSTANTS c
         WHERE
-             sc.prev_ts IS NULL
-          OR sc.ts - sc.prev_ts >= c.MIN_TIME_BETWEEN_PHOTOS
-        ORDER BY sc.draw_number
+            saf.draw_number <= c.RESULT_LIMIT
     )
 
 SELECT
-    fc.id,
-    cc.year
-FROM filtered_candidates fc
-     CROSS JOIN CONSTANTS c
-     CROSS JOIN chosen_year cc
-WHERE
-    fc.row_number <= c.RESULT_LIMIT
-ORDER BY fc.ts
+    sa.id,
+    sy.year
+FROM selected_assets sa
+     CROSS JOIN selected_year sy
+ORDER BY sa.ts
