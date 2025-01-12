@@ -12,13 +12,13 @@ WITH
             c.cluster_id,
             c.cluster_start,
             c.cluster_end,
-            c."ownerId" AS owner_id,
+            c."ownerId"                      AS owner_id,
             JSONB_BUILD_OBJECT(
                     'cities', c.cities,
                     'states', c.states,
                     'countries', c.countries
-            )           AS cluster_location_distribution,
-            c.cluster_cardinality_score_ge_0
+            )                                AS cluster_location_distribution,
+            c.cluster_cardinality_score_ge_0 AS cardinality_score_ge_0
         FROM asset_dbscan_clusters c
              CROSS JOIN CONSTANTS co
         WHERE
@@ -31,12 +31,12 @@ WITH
             ad.id,
             ad.ts,
             ad.cluster_id,
-            ad."ownerId" AS owner_id,
-            ad.normalized_quality_score
+            ad."ownerId"                             AS owner_id,
+            COALESCE(ad.normalized_quality_score, 0) AS normalized_quality_score
         FROM asset_analysis ad
              CROSS JOIN CONSTANTS co
         WHERE
-              ad.normalized_quality_score >= 0
+              COALESCE(ad.normalized_quality_score, 0) >= 0
           AND ad."ownerId" = ANY (co.USER_IDS)
     ),
 
@@ -49,11 +49,11 @@ WITH
                     d.cluster_start,
                     d.cluster_end,
                     d.cluster_location_distribution,
-                    SQRT(d.cluster_cardinality_score_ge_0) AS weight
+                    SQRT(d.cardinality_score_ge_0) AS weight
                 FROM cluster_data d
                      CROSS JOIN CONSTANTS c
                 WHERE
-                    d.cluster_cardinality_score_ge_0 >= c.RESULT_LIMIT
+                    d.cardinality_score_ge_0 >= c.RESULT_LIMIT
             ),
 
             weighted_data_running_sum AS (

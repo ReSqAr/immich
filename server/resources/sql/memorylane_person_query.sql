@@ -19,7 +19,7 @@ WITH
              CROSS JOIN CONSTANTS co
         WHERE
               p."ownerId" = ANY (co.USER_IDS)
-          AND aa.normalized_quality_score >= 0
+          AND COALESCE(aa.normalized_quality_score, 0) >= 0
         GROUP BY p.id, p.name
     ),
 
@@ -27,14 +27,14 @@ WITH
         SELECT
             ad.id,
             ad.ts,
-            af."personId" AS person_id,
-            ad."ownerId"  AS owner_id,
-            ad.normalized_quality_score
+            af."personId"                            AS person_id,
+            ad."ownerId"                             AS owner_id,
+            COALESCE(ad.normalized_quality_score, 0) AS normalized_quality_score
         FROM asset_analysis ad
              JOIN asset_faces af ON ad.id = af."assetId"
              CROSS JOIN CONSTANTS co
         WHERE
-              ad.normalized_quality_score >= 0
+              COALESCE(ad.normalized_quality_score, 0) >= 0
           AND ad."ownerId" = ANY (co.USER_IDS)
     ),
 

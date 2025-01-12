@@ -11,13 +11,13 @@ WITH
         SELECT
             aa.id,
             aa.ts,
-            aa.normalized_quality_score,
-            EXTRACT(YEAR FROM aa.ts) AS year
+            COALESCE(aa.normalized_quality_score, 0) AS normalized_quality_score,
+            EXTRACT(YEAR FROM aa.ts)                 AS year
         FROM asset_analysis aa
              CROSS JOIN CONSTANTS c
         WHERE
               aa."ownerId" = ANY (c.USER_IDS)
-          AND aa.normalized_quality_score >= 0
+          AND COALESCE(aa.normalized_quality_score, 0) >= 0
     ),
 
     selected_year AS (

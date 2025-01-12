@@ -1,24 +1,24 @@
 WITH
     CONSTANTS AS (
         SELECT
-            $1::BIGINT            AS SEED,
-            $2::INT               AS RESULT_LIMIT,
-            $3::uuid[]            AS USER_IDS,
-            INTERVAL '6 HOURS'    AS MIN_TIME_BETWEEN_PHOTOS,
-            INTERVAL '3 months'   AS LOOKBACK_WINDOW
+            $1::BIGINT          AS SEED,
+            $2::INT             AS RESULT_LIMIT,
+            $3::uuid[]          AS USER_IDS,
+            INTERVAL '6 HOURS'  AS MIN_TIME_BETWEEN_PHOTOS,
+            INTERVAL '3 months' AS LOOKBACK_WINDOW
     ),
 
     data AS (
         SELECT
             aa.id,
             aa.ts,
-            aa.normalized_quality_score
+            COALESCE(aa.normalized_quality_score, 0) AS normalized_quality_score
         FROM asset_analysis aa
              CROSS JOIN CONSTANTS c
         WHERE
               aa.ts >= CURRENT_TIMESTAMP - c.LOOKBACK_WINDOW
           AND aa."ownerId" = ANY (c.USER_IDS)
-          AND aa.normalized_quality_score >= 0
+          AND COALESCE(aa.normalized_quality_score, 0) >= 0
     ),
 
     selected_assets AS (

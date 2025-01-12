@@ -17,13 +17,13 @@ export const memorylaneClusterQuery = `WITH
             c.cluster_id,
             c.cluster_start,
             c.cluster_end,
-            c."ownerId" AS owner_id,
+            c."ownerId"                      AS owner_id,
             JSONB_BUILD_OBJECT(
                     'cities', c.cities,
                     'states', c.states,
                     'countries', c.countries
-            )           AS cluster_location_distribution,
-            c.cluster_cardinality_score_ge_0
+            )                                AS cluster_location_distribution,
+            c.cluster_cardinality_score_ge_0 AS cardinality_score_ge_0
         FROM asset_dbscan_clusters c
              CROSS JOIN CONSTANTS co
         WHERE
@@ -36,12 +36,12 @@ export const memorylaneClusterQuery = `WITH
             ad.id,
             ad.ts,
             ad.cluster_id,
-            ad."ownerId" AS owner_id,
-            ad.normalized_quality_score
+            ad."ownerId"                             AS owner_id,
+            COALESCE(ad.normalized_quality_score, 0) AS normalized_quality_score
         FROM asset_analysis ad
              CROSS JOIN CONSTANTS co
         WHERE
-              ad.normalized_quality_score >= 0
+              COALESCE(ad.normalized_quality_score, 0) >= 0
           AND ad."ownerId" = ANY (co.USER_IDS)
     ),
 
@@ -54,11 +54,11 @@ export const memorylaneClusterQuery = `WITH
                     d.cluster_start,
                     d.cluster_end,
                     d.cluster_location_distribution,
-                    SQRT(d.cluster_cardinality_score_ge_0) AS weight
+                    SQRT(d.cardinality_score_ge_0) AS weight
                 FROM cluster_data d
                      CROSS JOIN CONSTANTS c
                 WHERE
-                    d.cluster_cardinality_score_ge_0 >= c.RESULT_LIMIT
+                    d.cardinality_score_ge_0 >= c.RESULT_LIMIT
             ),
 
             weighted_data_running_sum AS (
@@ -190,7 +190,7 @@ export const memorylanePersonQuery = `WITH
              CROSS JOIN CONSTANTS co
         WHERE
               p."ownerId" = ANY (co.USER_IDS)
-          AND aa.normalized_quality_score >= 0
+          AND COALESCE(aa.normalized_quality_score, 0) >= 0
         GROUP BY p.id, p.name
     ),
 
@@ -198,14 +198,14 @@ export const memorylanePersonQuery = `WITH
         SELECT
             ad.id,
             ad.ts,
-            af."personId" AS person_id,
-            ad."ownerId"  AS owner_id,
-            ad.normalized_quality_score
+            af."personId"                            AS person_id,
+            ad."ownerId"                             AS owner_id,
+            COALESCE(ad.normalized_quality_score, 0) AS normalized_quality_score
         FROM asset_analysis ad
              JOIN asset_faces af ON ad.id = af."assetId"
              CROSS JOIN CONSTANTS co
         WHERE
-              ad.normalized_quality_score >= 0
+              COALESCE(ad.normalized_quality_score, 0) >= 0
           AND ad."ownerId" = ANY (co.USER_IDS)
     ),
 
@@ -327,115 +327,27 @@ FROM selected_assets sa
      CROSS JOIN selected_person s
 ORDER BY sa.draw_number`;
 
-export const memorylaneRecentHighlightsQuery2 = `WITH
-    CONSTANTS AS (
-        SELECT
-            INTERVAL '3 months' AS LOOKBACK_WINDOW,
-            INTERVAL '6 HOURS'  AS MIN_TIME_BETWEEN_PHOTOS,
-            0.0                 AS MIN_QUALITY_SCORE,
-            $1::BIGINT          AS SEED,
-            $2::INT             AS RESULT_LIMIT,
-            $3::uuid[]          AS USER_IDS
-    ),
-    data AS (
-        SELECT
-            ad.id,
-            ad.ts                           AS ts,
-            1 + ad.normalized_quality_score AS weight
-        FROM asset_analysis AS ad
-             CROSS JOIN CONSTANTS c
-        WHERE
-              ad.ts >= CURRENT_TIMESTAMP - c.LOOKBACK_WINDOW
-          AND ad.normalized_quality_score >= c.MIN_QUALITY_SCORE
-          AND ad."ownerId" = ANY (c.USER_IDS)
-    ),
-    w AS (
-        SELECT
-            d.id,
-            d.ts,
-            d.weight,
-            SUM(d.weight) OVER ()              AS total_weight,
-            SUM(d.weight) OVER (ORDER BY d.ts) AS right_cumulative
-        FROM data d
-    ),
-    w2 AS (
-        SELECT
-            w.id,
-            w.ts,
-            w.weight,
-            w.total_weight,
-            w.right_cumulative,
-            COALESCE(
-                            LAG(w.right_cumulative) OVER (ORDER BY w.ts),
-                            0
-            ) AS left_cumulative
-        FROM w
-    ),
-    candidates AS (
-        SELECT
-            i AS draw_number,
-            w2.id,
-            w2.ts,
-            w2.weight
-        FROM w2
-             CROSS JOIN CONSTANTS c
-             JOIN GENERATE_SERIES(0, 2 * c.RESULT_LIMIT) i
-                  ON (((c.SEED # i)::BIGINT * 73244475::BIGINT) % 4294967296::BIGINT) %
-                     ROUND(1367 * w2.total_weight)::BIGINT BETWEEN 1367 * w2.left_cumulative AND 1367 * w2.right_cumulative
-        ORDER BY draw_number
-    ),
-    candidates_with_prev AS (
-        SELECT
-            a.draw_number,
-            a.id,
-            a.ts,
-            LAG(a.ts) OVER (ORDER BY a.ts) AS prev_ts
-        FROM candidates a
-             CROSS JOIN CONSTANTS c
-    ),
-    filtered_candidates AS (
-        SELECT
-            sc.draw_number,
-            sc.id,
-            sc.ts,
-            ROW_NUMBER() OVER (ORDER BY sc.draw_number) AS row_number
-        FROM candidates_with_prev sc
-             CROSS JOIN CONSTANTS c
-        WHERE
-             sc.prev_ts IS NULL
-          OR sc.ts - sc.prev_ts >= c.MIN_TIME_BETWEEN_PHOTOS
-        ORDER BY sc.draw_number
-    )
-
-SELECT
-    id
-FROM filtered_candidates
-     CROSS JOIN CONSTANTS c
-WHERE
-    row_number <= c.RESULT_LIMIT
-ORDER BY draw_number`;
-
 export const memorylaneRecentHighlightsQuery = `WITH
     CONSTANTS AS (
         SELECT
-            $1::BIGINT            AS SEED,
-            $2::INT               AS RESULT_LIMIT,
-            $3::uuid[]            AS USER_IDS,
-            INTERVAL '6 HOURS'    AS MIN_TIME_BETWEEN_PHOTOS,
-            INTERVAL '3 months'   AS LOOKBACK_WINDOW
+            $1::BIGINT          AS SEED,
+            $2::INT             AS RESULT_LIMIT,
+            $3::uuid[]          AS USER_IDS,
+            INTERVAL '6 HOURS'  AS MIN_TIME_BETWEEN_PHOTOS,
+            INTERVAL '3 months' AS LOOKBACK_WINDOW
     ),
 
     data AS (
         SELECT
             aa.id,
             aa.ts,
-            aa.normalized_quality_score
+            COALESCE(aa.normalized_quality_score, 0) AS normalized_quality_score
         FROM asset_analysis aa
              CROSS JOIN CONSTANTS c
         WHERE
               aa.ts >= CURRENT_TIMESTAMP - c.LOOKBACK_WINDOW
           AND aa."ownerId" = ANY (c.USER_IDS)
-          AND aa.normalized_quality_score >= 0
+          AND COALESCE(aa.normalized_quality_score, 0) >= 0
     ),
 
     selected_assets AS (
@@ -524,13 +436,13 @@ export const memorylaneYearQuery = `WITH
         SELECT
             aa.id,
             aa.ts,
-            aa.normalized_quality_score,
-            EXTRACT(YEAR FROM aa.ts) AS year
+            COALESCE(aa.normalized_quality_score, 0) AS normalized_quality_score,
+            EXTRACT(YEAR FROM aa.ts)                 AS year
         FROM asset_analysis aa
              CROSS JOIN CONSTANTS c
         WHERE
               aa."ownerId" = ANY (c.USER_IDS)
-          AND aa.normalized_quality_score >= 0
+          AND COALESCE(aa.normalized_quality_score, 0) >= 0
     ),
 
     selected_year AS (
