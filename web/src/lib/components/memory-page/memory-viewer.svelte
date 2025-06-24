@@ -35,7 +35,7 @@
   import { preferences } from '$lib/stores/user.store';
   import { getAssetThumbnailUrl, handlePromiseError, memoryLaneTitle } from '$lib/utils';
   import { cancelMultiselect } from '$lib/utils/asset-utils';
-  import { fromISODateTimeUTC, toTimelineAsset } from '$lib/utils/timeline-util';
+  import { fromTimelinePlainDateTime, toTimelineAsset } from '$lib/utils/timeline-util';
   import { AssetMediaSize, getAssetInfo } from '@immich/sdk';
   import { IconButton } from '@immich/ui';
   import {
@@ -561,7 +561,7 @@
 
             <div class="absolute start-8 top-4 text-sm font-medium text-white">
               <p>
-                {fromISODateTimeUTC(current.memory.assets[0].localDateTime).toLocaleString(DateTime.DATE_FULL, {
+                {fromTimelinePlainDateTime(current.asset.localDateTime).toLocaleString(DateTime.DATE_FULL, {
                   locale: $locale,
                 })}
               </p>
