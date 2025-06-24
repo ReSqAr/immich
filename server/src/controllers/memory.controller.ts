@@ -10,13 +10,14 @@ import {
   MemoryUpdateDto,
   OnThisDayDto,
   YearDto,
+  PersonDto,
 } from 'src/dtos/memory.dto';
 import { Permission } from 'src/enum';
 import { Auth, Authenticated } from 'src/middleware/auth.guard';
 import { MemoryService } from 'src/services/memory.service';
 import { UUIDParamDto } from 'src/validation';
 
-@ApiExtraModels(OnThisDayDto, YearDto)
+@ApiExtraModels(OnThisDayDto, YearDto, PersonDto)
 @ApiTags('Memories')
 @Controller('memories')
 export class MemoryController {

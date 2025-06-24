@@ -46,6 +46,11 @@ export class YearDto {
   year!: number;
 }
 
+export class PersonDto {
+  @ApiProperty()
+  name!: string;
+}
+
 type MemoryData = MemoryDataUnion;
 
 export class MemoryUpdateDto extends MemoryBaseDto {
@@ -68,18 +73,26 @@ export class MemoryCreateDto extends MemoryBaseDto {
       case MemoryType.YEAR: {
         return YearDto;
       }
+      case MemoryType.PERSON: {
+        return PersonDto;
+      }
       default: {
         return Object;
       }
     }
   })
   @ApiProperty({
-    oneOf: [{ $ref: getSchemaPath(OnThisDayDto) }, { $ref: getSchemaPath(YearDto) }],
+    oneOf: [
+      { $ref: getSchemaPath(OnThisDayDto) },
+      { $ref: getSchemaPath(YearDto) },
+      { $ref: getSchemaPath(PersonDto) },
+    ],
     discriminator: {
       propertyName: 'type',
       mapping: {
         [MemoryType.ON_THIS_DAY]: getSchemaPath(OnThisDayDto),
         [MemoryType.YEAR]: getSchemaPath(YearDto),
+        [MemoryType.PERSON]: getSchemaPath(PersonDto),
       },
     },
   })
@@ -110,12 +123,17 @@ export class MemoryResponseDto {
   @ApiProperty({ enumName: 'MemoryType', enum: MemoryType })
   type!: MemoryType;
   @ApiProperty({
-    oneOf: [{ $ref: getSchemaPath(OnThisDayDto) }, { $ref: getSchemaPath(YearDto) }],
+    oneOf: [
+      { $ref: getSchemaPath(OnThisDayDto) },
+      { $ref: getSchemaPath(YearDto) },
+      { $ref: getSchemaPath(PersonDto) },
+    ],
     discriminator: {
       propertyName: 'type',
       mapping: {
         [MemoryType.ON_THIS_DAY]: getSchemaPath(OnThisDayDto),
         [MemoryType.YEAR]: getSchemaPath(YearDto),
+        [MemoryType.PERSON]: getSchemaPath(PersonDto),
       },
     },
   })

@@ -10873,6 +10873,7 @@
             "discriminator": {
               "mapping": {
                 "on_this_day": "#/components/schemas/OnThisDayDto",
+                "person": "#/components/schemas/PersonDto",
                 "year": "#/components/schemas/YearDto"
               },
               "propertyName": "type"
@@ -10883,6 +10884,9 @@
               },
               {
                 "$ref": "#/components/schemas/YearDto"
+              },
+              {
+                "$ref": "#/components/schemas/PersonDto"
               }
             ]
           },
@@ -10928,6 +10932,7 @@
             "discriminator": {
               "mapping": {
                 "on_this_day": "#/components/schemas/OnThisDayDto",
+                "person": "#/components/schemas/PersonDto",
                 "year": "#/components/schemas/YearDto"
               },
               "propertyName": "type"
@@ -10938,6 +10943,9 @@
               },
               {
                 "$ref": "#/components/schemas/YearDto"
+              },
+              {
+                "$ref": "#/components/schemas/PersonDto"
               }
             ]
           },
@@ -11009,7 +11017,8 @@
       "MemoryType": {
         "enum": [
           "on_this_day",
-          "year"
+          "year",
+          "person"
         ],
         "type": "string"
       },
@@ -11726,6 +11735,17 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "PersonDto": {
+        "properties": {
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
         "type": "object"
       },
       "PersonResponseDto": {

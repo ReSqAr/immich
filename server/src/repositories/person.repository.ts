@@ -5,7 +5,7 @@ import { InjectKysely } from 'nestjs-kysely';
 import { AssetFaces, DB, FaceSearch, Person } from 'src/db';
 import { ChunkedArray, DummyValue, GenerateSql } from 'src/decorators';
 import { AssetFileType, AssetVisibility, SourceType } from 'src/enum';
-import { removeUndefinedKeys } from 'src/utils/database';
+import { anyUuid, removeUndefinedKeys } from 'src/utils/database';
 import { paginationHelper, PaginationOptions } from 'src/utils/pagination';
 
 export interface PersonSearchOptions {
@@ -375,6 +375,27 @@ export class PersonRepository {
       .select((eb) => eb.fn.coalesce(eb.fn.countAll<number>(), zero).as('total'))
       .select((eb) => eb.fn.coalesce(eb.fn.countAll<number>().filterWhere('isHidden', '=', true), zero).as('hidden'))
       .executeTakeFirstOrThrow();
+  }
+
+  @GenerateSql({ params: [[DummyValue.UUID]] })
+  getNamedPersonStatistics(userIds: string[]) {
+    return this.db
+      .selectFrom('person')
+      .innerJoin('asset_faces', 'asset_faces.personId', 'person.id')
+      .innerJoin('assets', (join) =>
+        join
+          .onRef('asset_faces.assetId', '=', 'assets.id')
+          .on('assets.visibility', '=', sql.lit(AssetVisibility.TIMELINE))
+          .on('assets.deletedAt', 'is', null),
+      )
+      .select(['person.id', 'person.name'])
+      .select((eb) => eb.fn.count(eb.fn('distinct', ['assets.id'])).as('count'))
+      .where('person.ownerId', '=', anyUuid(userIds))
+      .where('asset_faces.deletedAt', 'is', null)
+      .where('person.name', '!=', '')
+      .where('person.isHidden', '=', false)
+      .groupBy(['person.id', 'person.name'])
+      .execute();
   }
 
   create(person: Insertable<Person>) {

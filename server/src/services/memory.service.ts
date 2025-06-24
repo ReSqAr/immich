@@ -41,6 +41,7 @@ export class MemoryService extends BaseService {
         try {
           await Promise.all(users.map((owner, i) => this.createOnThisDayMemories(owner.id, usersIds[i], target)));
           await Promise.all(users.map((owner, j) => this.createYearMemories(owner.id, usersIds[j], target)));
+          await Promise.all(users.map((owner, k) => this.createPersonMemories(owner.id, usersIds[k], target)));
         } catch (error) {
           this.logger.error(`Failed to create memories for ${target.toISO()}`, error);
         }
@@ -82,7 +83,7 @@ export class MemoryService extends BaseService {
       return;
     }
 
-    // Calculate weights for each year: weight = 1 + log10(asset count)
+    // Calculate weights for each year: weight = 1 + log10(1 + asset count)
     const weightedYears = yearlyStats.map(({ year, count }) => ({
       item: year,
       weight: 1 + Math.log10(1 + count),
@@ -108,6 +109,46 @@ export class MemoryService extends BaseService {
         ownerId,
         type: MemoryType.YEAR,
         data: { year: selectedYear },
+        memoryAt,
+        showAt,
+        hideAt,
+      },
+      assetIds,
+    );
+  }
+
+  private async createPersonMemories(ownerId: string, userIds: string[], target: DateTime) {
+    const allUserIds = [ownerId, ...userIds];
+
+    const personStats = await this.personRepository.getNamedPersonStatistics(allUserIds);
+    if (personStats.length === 0) {
+      return;
+    }
+
+    const weightedPersons = personStats.map(({ id, name, count }) => ({
+      item: { id, name },
+      weight: 1 + Math.log10(1 + Number(count)),
+    }));
+    const { id: selectedPersonId, name: selectedPersonName } = weightedRandomSelect<{ id: string; name: string }>(
+      weightedPersons,
+    )!;
+
+    const assets = await this.assetRepository.getRandom(allUserIds, 10, {
+      personIds: [selectedPersonId],
+    });
+    if (assets.length === 0) {
+      return;
+    }
+
+    const showAt = target.startOf('day').toISO();
+    const hideAt = target.endOf('day').toISO();
+    const memoryAt = assets.at(-1)!.fileCreatedAt;
+    const assetIds = new Set(assets.map((asset) => asset.id));
+    await this.memoryRepository.create(
+      {
+        ownerId,
+        type: MemoryType.PERSON,
+        data: { name: selectedPersonName },
         memoryAt,
         showAt,
         hideAt,

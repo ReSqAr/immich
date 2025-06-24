@@ -723,6 +723,9 @@ export type MapReverseGeocodeResponseDto = {
 export type OnThisDayDto = {
     year: number;
 };
+export type PersonDto = {
+    name: string;
+};
 export type YearDto = {
     year: number;
 };
@@ -732,6 +735,8 @@ export type MemoryResponseDto = {
     data: ({
         "type": "on_this_day";
     } & OnThisDayDto) | ({
+        "type": "person";
+    } & PersonDto) | ({
         "type": "year";
     } & YearDto);
     deletedAt?: string;
@@ -750,6 +755,8 @@ export type MemoryCreateDto = {
     data: ({
         "type": "on_this_day";
     } & OnThisDayDto) | ({
+        "type": "person";
+    } & PersonDto) | ({
         "type": "year";
     } & YearDto);
     isSaved?: boolean;
@@ -4033,7 +4040,8 @@ export enum JobCommand {
 }
 export enum MemoryType {
     OnThisDay = "on_this_day",
-    Year = "year"
+    Year = "year",
+    Person = "person"
 }
 export enum PartnerDirection {
     SharedBy = "shared-by",

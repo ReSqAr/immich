@@ -8,7 +8,6 @@ import {
   AssetJobName,
   AssetMediaSize,
   JobName,
-  MemoryType,
   finishOAuth,
   getAssetOriginalPath,
   getAssetPlaybackPath,
@@ -323,14 +322,21 @@ export const handlePromiseError = <T>(promise: Promise<T>): void => {
 export const memoryLaneTitle = derived(t, ($t) => {
   return (memory: MemoryResponseDto) => {
     const now = new Date();
-    if (memory.type === MemoryType.OnThisDay) {
+
+    if (memory.type === 'on_this_day' && 'year' in memory.data) {
       return $t('years_ago', { values: { years: now.getFullYear() - memory.data.year } });
     }
 
-    if (memory.type === MemoryType.Year) {
+    if (memory.type === 'year' && 'year' in memory.data) {
       return $t('memories_from_year', { values: { year: memory.data.year } });
     }
 
+    if (memory.type === 'person' && 'name' in memory.data) {
+      return $t('memories_of_person', { values: { name: memory.data.name } });
+    }
+
+    // Fallback (should never happen)
+    const _: never = memory as never;
     return $t('unknown');
   };
 });

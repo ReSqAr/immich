@@ -69,6 +69,8 @@ export enum MemoryType {
   ON_THIS_DAY = 'on_this_day',
   /** random pictures from a specific year */
   YEAR = 'year',
+  /** random pictures from a specific person */
+  PERSON = 'person',
 }
 
 export enum Permission {

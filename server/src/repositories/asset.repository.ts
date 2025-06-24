@@ -109,6 +109,7 @@ interface GetByIdsRelations {
 export interface AssetRandomOptions {
   startDate?: Date;
   endDate?: Date;
+  personIds?: string[];
 }
 
 @Injectable()
@@ -487,6 +488,7 @@ export class AssetRepository {
       .where('deletedAt', 'is', null)
       .$if(!!options?.startDate, (qb) => qb.where('localDateTime', '>=', options!.startDate!))
       .$if(!!options?.endDate, (qb) => qb.where('localDateTime', '<=', options!.endDate!))
+      .$if(!!options?.personIds, (qb) => hasPeople(qb, options!.personIds!))
       .orderBy((eb) => eb.fn('random'))
       .limit(take)
       .execute();
