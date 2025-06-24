@@ -67,6 +67,8 @@ export enum EntityType {
 export enum MemoryType {
   /** pictures taken on this day X years ago */
   ON_THIS_DAY = 'on_this_day',
+  /** random pictures from a specific year */
+  YEAR = 'year',
 }
 
 export enum Permission {

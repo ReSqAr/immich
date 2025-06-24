@@ -7,6 +7,7 @@ import { MemoryCreateDto, MemoryResponseDto, MemorySearchDto, MemoryUpdateDto, m
 import { DatabaseLock, JobName, MemoryType, Permission, QueueName, SystemMetadataKey } from 'src/enum';
 import { BaseService } from 'src/services/base.service';
 import { addAssets, getMyPartnerIds, removeAssets } from 'src/utils/asset.util';
+import { weightedRandomSelect } from 'src/utils/random.util';
 
 const DAYS = 3;
 
@@ -39,6 +40,7 @@ export class MemoryService extends BaseService {
 
         try {
           await Promise.all(users.map((owner, i) => this.createOnThisDayMemories(owner.id, usersIds[i], target)));
+          await Promise.all(users.map((owner, j) => this.createYearMemories(owner.id, usersIds[j], target)));
         } catch (error) {
           this.logger.error(`Failed to create memories for ${target.toISO()}`, error);
         }
@@ -69,6 +71,48 @@ export class MemoryService extends BaseService {
           new Set(assets.map(({ id }) => id)),
         ),
       ),
+    );
+  }
+
+  private async createYearMemories(ownerId: string, userIds: string[], target: DateTime) {
+    const allUserIds = [ownerId, ...userIds];
+
+    const yearlyStats = await this.assetRepository.getYearlyStatistics(allUserIds);
+    if (yearlyStats.length === 0) {
+      return;
+    }
+
+    // Calculate weights for each year: weight = 1 + log10(asset count)
+    const weightedYears = yearlyStats.map(({ year, count }) => ({
+      item: year,
+      weight: 1 + Math.log10(1 + count),
+    }));
+    const selectedYear = weightedRandomSelect<number>(weightedYears)!;
+
+    const startOfYear = DateTime.utc(selectedYear, 1, 1);
+    const endOfYear = DateTime.utc(selectedYear, 12, 31);
+    const assets = await this.assetRepository.getRandom(allUserIds, 10, {
+      startDate: startOfYear.toJSDate(),
+      endDate: endOfYear.toJSDate(),
+    });
+    if (assets.length === 0) {
+      return;
+    }
+
+    const showAt = target.startOf('day').toISO();
+    const hideAt = target.endOf('day').toISO();
+    const memoryAt = DateTime.utc(selectedYear, 12, 31).toISO()!;
+    const assetIds = new Set(assets.map((asset) => asset.id));
+    await this.memoryRepository.create(
+      {
+        ownerId,
+        type: MemoryType.YEAR,
+        data: { year: selectedYear },
+        memoryAt,
+        showAt,
+        hideAt,
+      },
+      assetIds,
     );
   }
 

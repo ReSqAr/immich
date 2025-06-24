@@ -1,10 +1,11 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, getSchemaPath } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsObject, IsPositive, ValidateNested } from 'class-validator';
 import { Memory } from 'src/database';
 import { AssetResponseDto, mapAsset } from 'src/dtos/asset-response.dto';
 import { AuthDto } from 'src/dtos/auth.dto';
 import { MemoryType } from 'src/enum';
+import { MemoryDataUnion } from 'src/types';
 import { Optional, ValidateBoolean, ValidateDate, ValidateUUID } from 'src/validation';
 
 class MemoryBaseDto {
@@ -31,13 +32,21 @@ export class MemorySearchDto {
   isSaved?: boolean;
 }
 
-class OnThisDayDto {
+export class OnThisDayDto {
   @IsInt()
   @IsPositive()
+  @ApiProperty()
   year!: number;
 }
 
-type MemoryData = OnThisDayDto;
+export class YearDto {
+  @IsInt()
+  @IsPositive()
+  @ApiProperty()
+  year!: number;
+}
+
+type MemoryData = MemoryDataUnion;
 
 export class MemoryUpdateDto extends MemoryBaseDto {
   @ValidateDate({ optional: true })
@@ -56,11 +65,23 @@ export class MemoryCreateDto extends MemoryBaseDto {
       case MemoryType.ON_THIS_DAY: {
         return OnThisDayDto;
       }
-
+      case MemoryType.YEAR: {
+        return YearDto;
+      }
       default: {
         return Object;
       }
     }
+  })
+  @ApiProperty({
+    oneOf: [{ $ref: getSchemaPath(OnThisDayDto) }, { $ref: getSchemaPath(YearDto) }],
+    discriminator: {
+      propertyName: 'type',
+      mapping: {
+        [MemoryType.ON_THIS_DAY]: getSchemaPath(OnThisDayDto),
+        [MemoryType.YEAR]: getSchemaPath(YearDto),
+      },
+    },
   })
   data!: MemoryData;
 
@@ -88,7 +109,17 @@ export class MemoryResponseDto {
   ownerId!: string;
   @ApiProperty({ enumName: 'MemoryType', enum: MemoryType })
   type!: MemoryType;
-  data!: MemoryData;
+  @ApiProperty({
+    oneOf: [{ $ref: getSchemaPath(OnThisDayDto) }, { $ref: getSchemaPath(YearDto) }],
+    discriminator: {
+      propertyName: 'type',
+      mapping: {
+        [MemoryType.ON_THIS_DAY]: getSchemaPath(OnThisDayDto),
+        [MemoryType.YEAR]: getSchemaPath(YearDto),
+      },
+    },
+  })
+  data!: MemoryDataUnion;
   isSaved!: boolean;
   assets!: AssetResponseDto[];
 }

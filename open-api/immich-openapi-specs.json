@@ -10870,7 +10870,21 @@
             "type": "array"
           },
           "data": {
-            "$ref": "#/components/schemas/OnThisDayDto"
+            "discriminator": {
+              "mapping": {
+                "on_this_day": "#/components/schemas/OnThisDayDto",
+                "year": "#/components/schemas/YearDto"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/OnThisDayDto"
+              },
+              {
+                "$ref": "#/components/schemas/YearDto"
+              }
+            ]
           },
           "isSaved": {
             "type": "boolean"
@@ -10911,7 +10925,21 @@
             "type": "string"
           },
           "data": {
-            "$ref": "#/components/schemas/OnThisDayDto"
+            "discriminator": {
+              "mapping": {
+                "on_this_day": "#/components/schemas/OnThisDayDto",
+                "year": "#/components/schemas/YearDto"
+              },
+              "propertyName": "type"
+            },
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/OnThisDayDto"
+              },
+              {
+                "$ref": "#/components/schemas/YearDto"
+              }
+            ]
           },
           "deletedAt": {
             "format": "date-time",
@@ -10980,7 +11008,8 @@
       },
       "MemoryType": {
         "enum": [
-          "on_this_day"
+          "on_this_day",
+          "year"
         ],
         "type": "string"
       },
@@ -15689,6 +15718,18 @@
           "webm"
         ],
         "type": "string"
+      },
+      "YearDto": {
+        "properties": {
+          "year": {
+            "minimum": 1,
+            "type": "number"
+          }
+        },
+        "required": [
+          "year"
+        ],
+        "type": "object"
       }
     }
   }

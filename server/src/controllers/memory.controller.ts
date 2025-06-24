@@ -1,5 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Query } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiExtraModels, ApiTags } from '@nestjs/swagger';
 import { BulkIdResponseDto, BulkIdsDto } from 'src/dtos/asset-ids.response.dto';
 import { AuthDto } from 'src/dtos/auth.dto';
 import {
@@ -8,12 +8,15 @@ import {
   MemorySearchDto,
   MemoryStatisticsResponseDto,
   MemoryUpdateDto,
+  OnThisDayDto,
+  YearDto,
 } from 'src/dtos/memory.dto';
 import { Permission } from 'src/enum';
 import { Auth, Authenticated } from 'src/middleware/auth.guard';
 import { MemoryService } from 'src/services/memory.service';
 import { UUIDParamDto } from 'src/validation';
 
+@ApiExtraModels(OnThisDayDto, YearDto)
 @ApiTags('Memories')
 @Controller('memories')
 export class MemoryController {

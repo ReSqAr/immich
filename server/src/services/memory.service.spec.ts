@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import { MemoryService } from 'src/services/memory.service';
+import { weightedRandomSelect } from 'src/utils/random.util';
 import { factory, newUuid, newUuids } from 'test/small.factory';
 import { newTestService, ServiceMocks } from 'test/utils';
 
@@ -276,5 +277,28 @@ describe(MemoryService.name, () => {
 
       expect(mocks.memory.removeAssetIds).toHaveBeenCalledWith(memory.id, [asset.id]);
     });
+  });
+});
+
+// Tests for weightedRandomSelect utility
+describe('weightedRandomSelect', () => {
+  it('should return null for empty array', () => {
+    expect(weightedRandomSelect([])).toBeNull();
+  });
+
+  it('should respect weights when selecting', () => {
+    const items = [
+      { item: 'a', weight: 1 },
+      { item: 'b', weight: 3 },
+    ];
+
+    // Force random = 0, should pick the first item
+    expect(weightedRandomSelect(items, () => 0)).toBe('a');
+
+    // 0.24 * totalWeight(=4) = 0.96 still in first bucket
+    expect(weightedRandomSelect(items, () => 0.24)).toBe('a');
+
+    // 0.26 * 4 = 1.04 exceeds first bucket, picks second
+    expect(weightedRandomSelect(items, () => 0.26)).toBe('b');
   });
 });

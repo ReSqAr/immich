@@ -327,6 +327,10 @@ export const memoryLaneTitle = derived(t, ($t) => {
       return $t('years_ago', { values: { years: now.getFullYear() - memory.data.year } });
     }
 
+    if (memory.type === MemoryType.Year) {
+      return $t('memories_from_year', { values: { year: memory.data.year } });
+    }
+
     return $t('unknown');
   };
 });

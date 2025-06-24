@@ -106,6 +106,11 @@ interface GetByIdsRelations {
   tags?: boolean;
 }
 
+export interface AssetRandomOptions {
+  startDate?: Date;
+  endDate?: Date;
+}
+
 @Injectable()
 export class AssetRepository {
   constructor(@InjectKysely() private db: Kysely<DB>) {}
@@ -472,7 +477,7 @@ export class AssetRepository {
       .executeTakeFirstOrThrow();
   }
 
-  getRandom(userIds: string[], take: number) {
+  getRandom(userIds: string[], take: number, options?: AssetRandomOptions) {
     return this.db
       .selectFrom('assets')
       .selectAll('assets')
@@ -480,8 +485,24 @@ export class AssetRepository {
       .$call(withDefaultVisibility)
       .where('ownerId', '=', anyUuid(userIds))
       .where('deletedAt', 'is', null)
+      .$if(!!options?.startDate, (qb) => qb.where('localDateTime', '>=', options!.startDate!))
+      .$if(!!options?.endDate, (qb) => qb.where('localDateTime', '<=', options!.endDate!))
       .orderBy((eb) => eb.fn('random'))
       .limit(take)
+      .execute();
+  }
+
+  @GenerateSql({ params: [[DummyValue.UUID]] })
+  getYearlyStatistics(userIds: string[]) {
+    return this.db
+      .selectFrom('assets')
+      .select(sql<number>`EXTRACT(YEAR FROM "localDateTime")::int`.as('year'))
+      .select((eb) => eb.fn.countAll<number>().as('count'))
+      .$call(withDefaultVisibility)
+      .where('ownerId', '=', anyUuid(userIds))
+      .where('deletedAt', 'is', null)
+      .groupBy(sql`EXTRACT(YEAR FROM "localDateTime")`)
+      .orderBy('year', 'desc')
       .execute();
   }
 

@@ -723,10 +723,17 @@ export type MapReverseGeocodeResponseDto = {
 export type OnThisDayDto = {
     year: number;
 };
+export type YearDto = {
+    year: number;
+};
 export type MemoryResponseDto = {
     assets: AssetResponseDto[];
     createdAt: string;
-    data: OnThisDayDto;
+    data: ({
+        "type": "on_this_day";
+    } & OnThisDayDto) | ({
+        "type": "year";
+    } & YearDto);
     deletedAt?: string;
     hideAt?: string;
     id: string;
@@ -740,7 +747,11 @@ export type MemoryResponseDto = {
 };
 export type MemoryCreateDto = {
     assetIds?: string[];
-    data: OnThisDayDto;
+    data: ({
+        "type": "on_this_day";
+    } & OnThisDayDto) | ({
+        "type": "year";
+    } & YearDto);
     isSaved?: boolean;
     memoryAt: string;
     seenAt?: string;
@@ -4021,7 +4032,8 @@ export enum JobCommand {
     ClearFailed = "clear-failed"
 }
 export enum MemoryType {
-    OnThisDay = "on_this_day"
+    OnThisDay = "on_this_day",
+    Year = "year"
 }
 export enum PartnerDirection {
     SharedBy = "shared-by",

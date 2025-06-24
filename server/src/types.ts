@@ -440,9 +440,13 @@ export type StorageAsset = {
 };
 
 export type OnThisDayData = { year: number };
+export type YearData = { year: number };
+
+export type MemoryDataUnion = OnThisDayData | YearData;
 
 export interface MemoryData {
   [MemoryType.ON_THIS_DAY]: OnThisDayData;
+  [MemoryType.YEAR]: YearData;
 }
 
 export type VersionCheckMetadata = { checkedAt: string; releaseVersion: string };

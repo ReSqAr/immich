@@ -20,7 +20,7 @@ import {
   SyncEntityType,
 } from 'src/enum';
 import { UserTable } from 'src/schema/tables/user.table';
-import { OnThisDayData, UserMetadataItem } from 'src/types';
+import { MemoryDataUnion, UserMetadataItem } from 'src/types';
 
 export type ArrayType<T> = ArrayTypeImpl<T> extends (infer U)[] ? U[] : ArrayTypeImpl<T>;
 
@@ -269,7 +269,7 @@ export interface Libraries {
 
 export interface Memories {
   createdAt: Generated<Timestamp>;
-  data: OnThisDayData;
+  data: MemoryDataUnion;
   deletedAt: Timestamp | null;
   hideAt: Timestamp | null;
   id: Generated<string>;
